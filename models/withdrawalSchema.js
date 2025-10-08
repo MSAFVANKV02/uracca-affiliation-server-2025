@@ -6,6 +6,7 @@ const WithdrawalSchema = new mongoose.Schema(
     paymentMethod: { type: String, enum: ["bank", "paypal"], required: true },
     withdrawalAmount: { type: Number, required: true },
     tdsAmount: { type: Number, required: true },
+  
     balanceBefore: { type: Number, required: true },
     balanceAfter: { type: Number, required: true },
     status: {

@@ -23,6 +23,11 @@ const affTypeSchema = new mongoose.Schema({
   type: { type: String,default:"INDIVIDUAL" , enum:["INDIVIDUAL","SPECIAL","COMPANY"] },
   commission: { type: Number },
   commissionType:  { type: String,default:"ONLY_AFF_PRODUCT" , enum:["ALL_PRODUCT","ONLY_AFF_PRODUCT"] },
+  tdsType: {
+    type: String,
+    enum: ["LINKED","UN_LINKED"],
+    default: "LINKED",
+  },
 });
 
 const notificationsSchema = new mongoose.Schema({

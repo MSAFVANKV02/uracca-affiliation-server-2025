@@ -3,14 +3,14 @@ import AffUser from "../../models/aff-user.js";
 export const updateAffUserStatus = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { status, type, commission, commissionType } = req.body;
-    console.log(
-      status,
-      type,
-      commission,
-      commissionType,
-      "status, type, commission, commissionType "
-    );
+    const { status, type, commission, commissionType, tdsType } = req.body;
+    // console.log(
+    //   status,
+    //   type,
+    //   commission,
+    //   commissionType,
+    //   "status, type, commission, commissionType "
+    // );
 
     if (!status) {
       return res
@@ -45,6 +45,7 @@ export const updateAffUserStatus = async (req, res) => {
 
     user.status = status;
     user.affType.type = type;
+    user.affType.tdsType = tdsType;
     // ✅ Only update commission if > 0
     if (typeof commission === "number" && commission > 0) {
       user.affType.commission = commission;

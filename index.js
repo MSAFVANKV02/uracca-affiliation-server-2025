@@ -16,6 +16,8 @@ import connectDB from "./config/db.js";
 // routers =======
 import userRouter from './routes/user-route.js'
 import withdrawalRouter from './routes/withdrawal-route.js'
+import feedbackRouter from './routes/feedback-route.js'
+
 
 
 dotenv.config();
@@ -73,6 +75,8 @@ const allowedOrigins = [
 
   app.use('/api/user',userRouter)
   app.use('/api/admin/withdrawal',withdrawalRouter)
+  app.use('/api/admin/feedbacks',feedbackRouter)
+
 
 
 app.listen(PORT, () => {
