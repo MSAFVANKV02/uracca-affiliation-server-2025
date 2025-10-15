@@ -1,4 +1,5 @@
 import AffUser from "../../models/aff-user.js";
+import { encryptData } from "../../utils/cript-data.js";
 
 
 
@@ -18,11 +19,14 @@ export const getAllAffUsers = async (req, res) => {
       const users = Object.keys(filters).length
         ? await AffUser.find(filters)
         : await AffUser.find();
+
+         // Encrypt the data before sending
+    const encryptedData = encryptData(users);
   
       res.status(200).json({
         success: true,
         count: users.length,
-        data: users,
+        data: encryptedData,
       });
     } catch (error) {
       console.error("Error fetching users:", error);

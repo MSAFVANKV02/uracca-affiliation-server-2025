@@ -17,6 +17,10 @@ import connectDB from "./config/db.js";
 import userRouter from './routes/user-route.js'
 import withdrawalRouter from './routes/withdrawal-route.js'
 import feedbackRouter from './routes/feedback-route.js'
+import platformRouter from './routes/platform-routes.js'
+import testRouter from './routes/test-route.js'
+
+
 
 
 
@@ -62,13 +66,26 @@ const allowedOrigins = [
     "http://localhost:3005",
   ];
   
+  // app.use(
+  //   cors({
+  //     origin: "http://localhost:3005",
+  //     credentials: true,
+  //   })
+  // );
+  
   app.use(
     cors({
-      origin: "http://localhost:3005",
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error("Not allowed by CORS"));
+        }
+      },
+      methods: "GET,POST,PUT,DELETE,PATCH",
       credentials: true,
     })
   );
-  
   
 
   app.use(errorHandler);
@@ -76,6 +93,10 @@ const allowedOrigins = [
   app.use('/api/user',userRouter)
   app.use('/api/admin/withdrawal',withdrawalRouter)
   app.use('/api/admin/feedbacks',feedbackRouter)
+  app.use('/api/admin/platform',platformRouter)
+  app.use('/test/order',testRouter)
+
+
 
 
 

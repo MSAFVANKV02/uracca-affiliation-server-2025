@@ -127,6 +127,7 @@ const userSchema = new mongoose.Schema(
         accountNumber: { type: String, default: "" },
         bankName: { type: String, default: "" },
         ifscCode: { type: String, default: "" },
+        upiId: { type: String, default: "" },
       },
       withdrawalPin: { type: String, default: "" },
       havePin: { type: Boolean, default: false },

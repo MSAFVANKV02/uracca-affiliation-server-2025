@@ -72,7 +72,7 @@ export const deleteAffiliateFeedbackById = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Feedback deleted successfully",
-      data: deletedFeedback,
+      // data: deletedFeedback,
     });
   } catch (error) {
     console.error("❌ Error deleting feedback:", error);

@@ -4,13 +4,20 @@ export const updateAffUserStatus = async (req, res) => {
   try {
     const { userId } = req.params;
     const { status, type, commission, commissionType, tdsType } = req.body;
-    // console.log(
-    //   status,
-    //   type,
-    //   commission,
-    //   commissionType,
-    //   "status, type, commission, commissionType "
-    // );
+    console.log(
+      status,
+      type,
+      commission,
+      commissionType,
+      "status, type, commission, commissionType "
+    );
+    const validErrorStatuses = ["REJECTED", "BLOCKED","PAUSED"];
+
+    if (validErrorStatuses.includes(status)) {
+      return res
+        .status(400)
+        .json({ success: false, message: `This Account Is ${status}` });
+    }
 
     if (!status) {
       return res
@@ -37,7 +44,6 @@ export const updateAffUserStatus = async (req, res) => {
         .status(404)
         .json({ success: false, message: "User not found" });
     }
-
 
     if (!user.affType) {
       user.affType = {};
@@ -69,7 +75,6 @@ export const updateAffUserStatus = async (req, res) => {
   }
 };
 
-
 // Update user by ID with dynamic body fields
 export const genericUpdateAffUser = async (req, res) => {
   try {
@@ -93,10 +98,16 @@ export const genericUpdateAffUser = async (req, res) => {
   }
 };
 
-
-
 // Actual DB update helper
 export const updateAffUser = async (userId, updateData) => {
+  const user = await AffUser.findById(userId);
+  const validErrorStatuses = ["REJECTED", "BLOCKED"];
+
+  if (validErrorStatuses.includes(user.status)) {
+    return res
+      .status(400)
+      .json({ success: false, message: `This Account Is ${user.status}` });
+  }
   const updatedUser = await AffUser.findByIdAndUpdate(
     userId,
     { $set: updateData },
