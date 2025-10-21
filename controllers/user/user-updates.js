@@ -4,13 +4,13 @@ export const updateAffUserStatus = async (req, res) => {
   try {
     const { userId } = req.params;
     const { status, type, commission, commissionType, tdsType } = req.body;
-    console.log(
-      status,
-      type,
-      commission,
-      commissionType,
-      "status, type, commission, commissionType "
-    );
+    // console.log(
+    //   status,
+    //   type,
+    //   commission,
+    //   commissionType,
+    //   "status, type, commission, commissionType "
+    // );
     const validErrorStatuses = ["REJECTED", "BLOCKED","PAUSED"];
 
     if (validErrorStatuses.includes(status)) {

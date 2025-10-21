@@ -4,14 +4,17 @@ import { Platform } from "../../models/platformSchema.js";
 export const getPlatformSettings = async (req, res) => {
   try {
     // Always fetch the first (and only) Platform document
-    let platform = await Platform.findOne({});
+    const adminId = req.admin._id;
+    // console.log(adminId,"req in getPlatformSettings");
+    
+    let platform = await Platform.findOne({adminId});
 
     if (!platform) {
         // ✅ Create default platform matching the new schema
         platform = await Platform.create({
-          domain: "https://www.uracca.com/",
+          domain: "",
           commission: 0,
-  
+          adminId:adminId,
           paymentMethods: {
             type: "ENTER",
             minAmount: 0,
@@ -68,9 +71,9 @@ export const getPlatformSettings = async (req, res) => {
 export const updatePlatformSettings = async (req, res) => {
   try {
     const { updateFields } = req.body;
-
+    const adminId = req.admin._id;
     // Always update the first Platform document
-    let platform = await Platform.findOne({});
+    let platform = await Platform.findOne({ adminId });
 
     if (!platform) {
       // If no Platform exists, create one

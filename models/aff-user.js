@@ -63,6 +63,8 @@ const generateReferralId = async () => {
 const userSchema = new mongoose.Schema(
   {
     userName: String,
+    campaignAccessKey: [String],
+    campaignId: [{ type: mongoose.Schema.Types.ObjectId, ref: "Campaign" }],
     userType: {
       type: String,
       enum: Object.values(UserTypeEnum),

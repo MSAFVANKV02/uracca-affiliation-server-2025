@@ -13,8 +13,10 @@ const termAndConditionsSchema = new mongoose.Schema({
 const platformSchema = new mongoose.Schema(
   {
     // clientId: { type: mongoose.Schema.Types.ObjectId, ref: "Client", required: true },
-    domain: { type: String, required: true },
+    domain: { type: String,  },
+    adminId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     commission: { type: Number, default: 0 },
+    returnPeriod: { type: Number, default: 0 },
     backendRoutes:{
       products:String
     },
