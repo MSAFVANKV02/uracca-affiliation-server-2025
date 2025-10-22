@@ -15,7 +15,7 @@ router.post("/", updateProductsToDb); // bulk add/update
 router.patch("/:id", updateProductCommission); // single commission update
 router.patch("updateStatus/:id", updateProductStatus); // single commission update
 
-router.get("/newCampaign",authenticateUser, getProductsForUsersFromDb);
+router.get("/newCampaign/:adminId",authenticateUser, getProductsForUsersFromDb);
 
 
 export default router;

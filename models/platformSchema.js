@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { UserTypeEnum } from "./enum.js";
 
 const ruleSchema = new mongoose.Schema({
   // _id: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() },
@@ -15,6 +16,12 @@ const platformSchema = new mongoose.Schema(
     // clientId: { type: mongoose.Schema.Types.ObjectId, ref: "Client", required: true },
     domain: { type: String,  },
     adminId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    adminType: {
+      type: String,
+      enum: Object.values(UserTypeEnum),
+      default: UserTypeEnum.USER,
+      // required: true,
+    },
     commission: { type: Number, default: 0 },
     returnPeriod: { type: Number, default: 0 },
     backendRoutes:{

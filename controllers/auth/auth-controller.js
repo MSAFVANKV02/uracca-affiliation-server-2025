@@ -21,16 +21,34 @@ export const login = async (req, res) => {
       // If email, domain, and password provided, create new user
       if (email && domain && password) {
         const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Extract domain name for userName
+        let normalizedDomainForUserName = domain.replace(/(^\w+:|^)\/\//, ""); // remove http/https
+        normalizedDomainForUserName = normalizedDomainForUserName.replace(
+          /^www\./,
+          ""
+        ); // remove www
+        normalizedDomainForUserName = normalizedDomainForUserName.split(".")[0]; // take first part
+
+        let normalizedDomain = domain;
+        if (normalizedDomain.endsWith("/")) {
+          normalizedDomain = normalizedDomain.slice(0, -1);
+        }
+
         user = new AffUser({
           mobile,
           email,
           password: hashedPassword,
           userType: type || "ADMIN",
+          userName: normalizedDomainForUserName,
+          domain: normalizedDomain,
         });
         await user.save();
       } else {
         // Otherwise, return registration false
-        return res.status(403).json({message: "User Not Found", registration: false });
+        return res
+          .status(403)
+          .json({ message: "User Not Found", registration: false });
       }
     } else {
       // 3️⃣ If user exists, verify password
@@ -41,26 +59,33 @@ export const login = async (req, res) => {
     }
 
     // Normalize domain: remove trailing slash if exists
-let normalizedDomain = domain;
-if (normalizedDomain.endsWith("/")) {
-  normalizedDomain = normalizedDomain.slice(0, -1);
-}
-
+    let normalizedDomain = domain;
+    if (normalizedDomain.endsWith("/")) {
+      normalizedDomain = normalizedDomain.slice(0, -1);
+    }
 
     // 4️⃣ Check if platform exists for this admin and domain
-    let platform = await Platform.findOne({ domain:normalizedDomain, adminId: user._id });
+    let platform = await Platform.findOne({
+      domain: normalizedDomain,
+      adminId: user._id,
+    });
     if (!platform) {
-      platform = new Platform({ domain, adminId: user._id });
+      platform = new Platform({ domain, adminId: user._id, adminType: type });
       await platform.save();
     }
 
     // 5️⃣ Generate JWT token
-    const payload = { adminId: user._id, mobile, email, domain: normalizedDomain };
+    const payload = {
+      adminId: user._id,
+      mobile,
+      email,
+      domain: normalizedDomain,
+    };
     const token = jwt.sign(payload, JWT_SECRET_ADMIN, { expiresIn: "7d" });
 
     // 6️⃣ Set cookie
     res.cookie("aff-admin-tkn", token, {
-        httpOnly: false,
+      httpOnly: false,
       secure: process.env.NODE_ENV === "production",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
@@ -79,7 +104,9 @@ if (normalizedDomain.endsWith("/")) {
     });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ message: "Server error", error: error.message });
+    return res
+      .status(500)
+      .json({ message: "Server error", error: error.message });
   }
 };
 

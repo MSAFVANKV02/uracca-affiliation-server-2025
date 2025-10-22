@@ -462,10 +462,25 @@ export const getProductsForUsersFromDb = async (req, res) => {
     const { categoryId, productId, color, size, minPrice, maxPrice, sort } =
       req.query;
 
+      const {adminId} = req.params
+      // console.log(adminId,'adminId');
+      
+
     // 🧩 Get platform configuration
-    const platform = await Platform.findOne({});
+
+    let platform;
+
+    if (adminId) {
+      platform = await Platform.findOne({ adminId });
+    }
+
     if (!platform) {
-      return res.status(404).json({ message: "Platform not found" });
+      // fallback to SUPER_ADMIN platform
+      platform = await Platform.findOne({ adminType: "SUPER_ADMIN" });
+    }
+
+    if (!platform) {
+      return res.status(404).json({ message: "No valid platform found" });
     }
 
     const productsUrl = platform.backendRoutes?.products;

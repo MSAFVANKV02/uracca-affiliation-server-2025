@@ -18,7 +18,7 @@ export const authenticateUser = async (req, res, next) => {
         
       decoded = jwt.verify(token, JWT_SECRET);
     //   console.log(token, "token from authenticateUser middleware");
-    console.log(decoded, "token from authenticateUser middleware");
+    // console.log(decoded, "token from authenticateUser middleware");
     } catch (err) {
       console.error("JWT verification failed:", err.message);
       return res.status(401).json({ success: false, message: "Invalid or expired token." });

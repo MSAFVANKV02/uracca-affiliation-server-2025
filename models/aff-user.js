@@ -63,8 +63,20 @@ const generateReferralId = async () => {
 const userSchema = new mongoose.Schema(
   {
     userName: String,
+    domain: { type: String,  },
     campaignAccessKey: [String],
     campaignId: [{ type: mongoose.Schema.Types.ObjectId, ref: "Campaign" }],
+    collaborateWith: [
+      {
+        accountId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        status: {
+          type: String,
+          enum: ["ACCEPTED", "REJECTED", "PENDING"],
+          default: "ACCEPTED", // ✅ just a string, not array
+        },
+      },
+    ],    
+    workingOn: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     userType: {
       type: String,
       enum: Object.values(UserTypeEnum),
@@ -87,6 +99,12 @@ const userSchema = new mongoose.Schema(
       enum: Object.values(statusEnum),
       default: statusEnum.PENDING,
     },
+    commissionDetails: {
+      totalCommission: { type: Number, default: 0 },
+      pendingCommission: { type: Number, default: 0 },
+      paidCommission: { type: Number, default: 0 },
+      totalTdsCutOff: { type: Number, default: 0 }, // total TDS deducted
+    },
 
     registrationVerified: { type: Boolean, default: false },
     campaignStarted: { type: Boolean, default: false },
@@ -104,12 +122,13 @@ const userSchema = new mongoose.Schema(
     otpExpiry: { type: Date },
 
     actions: {
-      totalClicks: [
-        {
-          date: String,
-          clicks: Number,
-        },
-      ],
+      // totalClicks: [
+      //   {
+      //     date: String,
+      //     clicks: Number,
+      //   },
+      // ],
+      totalClicks: { type: Number, default: 0 },
       totalOrders: { type: Number, default: 0 },
       totalSales: { type: Number, default: 0 },
     },

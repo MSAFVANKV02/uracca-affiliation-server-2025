@@ -1,9 +1,10 @@
 import mongoose from "mongoose";
 
 const commissionRecordSchema = new mongoose.Schema({
-  orderId: { type: mongoose.Schema.Types.ObjectId, ref: "Order" },
+  orderId: String,
   //   productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
   commissionAmount: { type: Number, required: true },
+  purchaseAmount: { type: Number, required: true },
   tdsAmount: { type: Number, default: 0 }, // TDS per transaction
   finalCommission: { type: Number, default: 0 }, // after TDS deduction
   status: {
@@ -39,7 +40,8 @@ const campaignSchema = new mongoose.Schema({
   },
 
   // Per order commission history
-  commissionRecords: [commissionRecordSchema],
+  // commissionRecords: [commissionRecordSchema],
+  commissionRecords: [{ type: mongoose.Schema.Types.ObjectId, ref: "Commissions" }],
 
   // Product linked to this campaign
   product: {

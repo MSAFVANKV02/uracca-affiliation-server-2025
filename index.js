@@ -21,6 +21,8 @@ import platformRouter from "./routes/platform-routes.js";
 import testRouter from "./routes/test-route.js";
 import productRouter from "./routes/product-route.js";
 import campaignRouter from "./routes/campaign-route.js";
+import affiliateRouter from "./routes/affiliate-route.js";
+
 
 import "./cron/commissionPayoutJob.js";
 
@@ -61,6 +63,7 @@ const allowedOrigins = [
   "https://www.admin.uracca.com",
   "http://localhost:3000",
   "http://localhost:3001",
+  "http://localhost:3002",
   "http://localhost:3005",
 ];
 
@@ -99,6 +102,10 @@ app.use("/test/order", testRouter);
 // ------- users apis ----------- ////
 app.use("/api/users/products", productRouter);
 app.use("/api/users/campaign", campaignRouter);
+
+// ------- affiliate apis ----------- ////
+app.use("/api/affiliate", affiliateRouter);
+
 
 app.listen(PORT, () => {
   console.log(chalk.cyan(`Server is running on port ${PORT}`));
