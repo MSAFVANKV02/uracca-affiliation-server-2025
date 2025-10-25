@@ -35,7 +35,7 @@ export const createCampaign = async (req, res) => {
     const campaignAccessKey = await generateUniqueCampaignAccessKey();
 
     // Generate campaign link with user's referral ID
-    const campaignLink = `${domain}/products/${slug}?aff=${user.referralId}&campKey=${campaignAccessKey}`;
+    const campaignLink = `${domain}products/${slug}?aff=${user.referralId}&campKey=${campaignAccessKey}`;
 
     // Create new campaign
     const newCampaign = new Campaign({

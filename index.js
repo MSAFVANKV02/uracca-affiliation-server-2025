@@ -22,6 +22,10 @@ import testRouter from "./routes/test-route.js";
 import productRouter from "./routes/product-route.js";
 import campaignRouter from "./routes/campaign-route.js";
 import affiliateRouter from "./routes/affiliate-route.js";
+import walletRouter from "./routes/wallet-route.js";
+import bulkRouter from "./routes/bulk-route.js";
+
+
 
 
 import "./cron/commissionPayoutJob.js";
@@ -99,12 +103,18 @@ app.use("/api/admin/platform", platformRouter);
 app.use("/api/admin/products", productRouter);
 app.use("/test/order", testRouter);
 
+app.use("/api/admin/bulk-details", bulkRouter);
+
+
 // ------- users apis ----------- ////
 app.use("/api/users/products", productRouter);
 app.use("/api/users/campaign", campaignRouter);
 
 // ------- affiliate apis ----------- ////
 app.use("/api/affiliate", affiliateRouter);
+app.use("/api/wallet", walletRouter);
+app.use("/api/user/withdrawal", withdrawalRouter);
+
 
 
 app.listen(PORT, () => {

@@ -11,6 +11,7 @@ export const UserActionEnum = Object.freeze({
   CAMPAIGN_STARTED: "CAMPAIGN_STARTED",
   ACCOUNT_DELETION: "ACCOUNT-DELETION",
   USER_REFER: "USER-REFER",
+  COMMISSION_PAYOUT: "COMMISSION-PAYOUT",
 });
 
 export const UserCategoryEnum = Object.freeze({
@@ -20,6 +21,8 @@ export const UserCategoryEnum = Object.freeze({
   CAMPAIGN: "CAMPAIGN",
   ADMIN: "ADMIN",
   GENERAL: "GENERAL",
+  EARNINGS: "EARNINGS",
+
 });
 
 export const UserTypeEnum = Object.freeze({

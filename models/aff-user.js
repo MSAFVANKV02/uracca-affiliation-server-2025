@@ -39,9 +39,12 @@ const notificationsSchema = new mongoose.Schema({
   },
 });
 
+
+
 const documentSchema = new mongoose.Schema({
   url: { type: String, required: true },
   type: { type: String, required: true },
+  
 });
 
 // ✅ Referral ID generator
@@ -63,7 +66,8 @@ const generateReferralId = async () => {
 const userSchema = new mongoose.Schema(
   {
     userName: String,
-    domain: { type: String,  },
+    // domain: { type: String,  },
+    domain: { type: mongoose.Schema.Types.ObjectId, ref: "domain" },
     campaignAccessKey: [String],
     campaignId: [{ type: mongoose.Schema.Types.ObjectId, ref: "Campaign" }],
     collaborateWith: [
@@ -104,7 +108,26 @@ const userSchema = new mongoose.Schema(
       pendingCommission: { type: Number, default: 0 },
       paidCommission: { type: Number, default: 0 },
       totalTdsCutOff: { type: Number, default: 0 }, // total TDS deducted
+      totalCommissionWithTds: { type: Number, default: 0 },
     },
+
+    transactionDetails: {
+      withdrawalMethod: {
+        type: String,
+        enum: ["BANK", "ONLINE"],
+        default: "ONLINE",
+        required: true,
+      },
+      method: { type: String, enum: ["BANK", "UPI"] },
+      upiId: { type: String, default: "" },
+      OnlineBank: {
+        accountHolderName: { type: String, default: "" },
+        accountNumber: { type: String, default: "" },
+        bankName: { type: String, default: "" },
+        ifscCode: { type: String, default: "" },
+      },
+    },
+
 
     registrationVerified: { type: Boolean, default: false },
     campaignStarted: { type: Boolean, default: false },

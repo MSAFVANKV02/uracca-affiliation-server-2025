@@ -1,7 +1,10 @@
 import AffUser from "../../models/aff-user.js";
 import { UserActionEnum, UserCategoryEnum } from "../../models/enum.js";
+import { Platform } from "../../models/platformSchema.js";
+import { Wallet } from "../../models/walletSchema.js";
 import Withdrawals from "../../models/withdrawalSchema.js";
 import { addHistory } from "../../utils/history.js";
+import bcrypt from "bcryptjs";
 
 export const getAllAffWithdrawalHistory = async (req, res) => {
   try {
@@ -47,7 +50,9 @@ export const updateAffWithdrawalStatus = async (req, res) => {
     }
 
     // ------------------ 🔍 Fetch Withdrawal ------------------
-    const withdrawal = await Withdrawals.findById(withdrawalId).populate("user");
+    const withdrawal = await Withdrawals.findById(withdrawalId).populate(
+      "user"
+    );
     if (!withdrawal) {
       return res.status(404).json({
         success: false,
@@ -64,14 +69,16 @@ export const updateAffWithdrawalStatus = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        message: "Cannot complete withdrawal. User has no pending payout amount.",
+        message:
+          "Cannot complete withdrawal. User has no pending payout amount.",
       });
     }
 
     // ------------------ 🧩 Prepare Update Fields ------------------
     const updateFields = {
       status,
-      rejectReason: status === "REJECTED" ? rejectReason || "No reason provided" : "",
+      rejectReason:
+        status === "REJECTED" ? rejectReason || "No reason provided" : "",
     };
 
     // ------------------ 🛠️ Update Withdrawal ------------------
@@ -151,6 +158,164 @@ export const updateAffWithdrawalStatus = async (req, res) => {
   }
 };
 
+export const processWithdrawal = async (req, res) => {
+  try {
+    const adminId = req.params.adminId;
+    const userId = req.user._id;
+
+    if (!adminId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Admin ID is required" });
+    }
+
+    const { amount, withdrawalPin, method } = req.body;
+
+    if (!userId || !amount || !withdrawalPin || !method) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Required fields missing" });
+    }
+
+    // 🔹 Fetch user
+    const user = await AffUser.findById(userId);
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+
+    // 🔹 Validate withdrawal PIN
+    if (
+      !user.withdrawalDetails.havePin ||
+      !user.withdrawalDetails.withdrawalPin
+    ) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Withdrawal PIN not set" });
+    }
+
+    const isPinValid = await bcrypt.compare(
+      withdrawalPin,
+      user.withdrawalDetails.withdrawalPin
+    );
+    if (!isPinValid)
+      return res
+        .status(403)
+        .json({ success: false, message: "Invalid withdrawal PIN" });
+
+    // 🔹 Fetch wallet
+    const wallet = await Wallet.findOne({ userId, adminId });
+    if (!wallet)
+      return res
+        .status(404)
+        .json({ success: false, message: "Wallet not found" });
+
+    if (wallet.balanceAmount < amount) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Insufficient balance" });
+    }
+
+    if (wallet.pendingAmount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "You already have a pending withdrawal",
+      });
+    }
+
+    // 🔹 Fetch platform settings
+    const platform = await Platform.findOne({ adminId });
+    if (!platform) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Platform settings not found" });
+    }
+
+    let finalAmount = amount;
+
+    // 🔹 Apply transfer charges
+    if (method === "BANK" && platform.bankTransfer.enabled) {
+      if (platform.bankTransfer.amountType === "FIXED")
+        finalAmount -= platform.bankTransfer.transferCharge;
+      else if (platform.bankTransfer.amountType === "PERCENT")
+        finalAmount -=
+          (finalAmount * platform.bankTransfer.transferCharge) / 100;
+    }
+
+    if (method === "ONLINE" && platform.onlineTransfer.enabled) {
+      if (platform.onlineTransfer.amountType === "FIXED")
+        finalAmount -= platform.onlineTransfer.transferCharge;
+      else if (platform.onlineTransfer.amountType === "PERCENT")
+        finalAmount -=
+          (finalAmount * platform.onlineTransfer.transferCharge) / 100;
+    }
+
+    // wallet.pendingAmount += method === "BANK" ? finalAmount : 0;
+    // wallet.paidAmount += method === "ONLINE" ? finalAmount : 0;
+    // 🔹 Update wallet
+    const balanceBefore = wallet.balanceAmount;
+    wallet.balanceAmount -= amount;
+    wallet.pendingAmount += finalAmount; // ✅ Always add to pending
+    await wallet.save();
+
+    // 🔹 Prepare withdrawal data
+    const withdrawalData = {
+      user: userId,
+      adminId,
+      paymentMethod: method,
+      withdrawalAmount: finalAmount,
+      requestedAmount: amount,
+      transferCharge: amount - finalAmount,
+      balanceBefore,
+      balanceAfter: wallet.balanceAmount,
+      // status: method === "BANK" ? "PENDING" : "COMPLETED",
+      status: "PENDING",
+      tdsAmount: 0,
+    };
+
+    // ✅ Take onlineMethod from user.transactionDetails (NOT from body)
+    if (method === "ONLINE") {
+      withdrawalData.onlineMethod = {
+        method: user.transactionDetails.method || null,
+        upiId: user.transactionDetails.upiId || null,
+        bank: user.transactionDetails.OnlineBank || null,
+      };
+    }
+
+    const withdrawal = await Withdrawals.create(withdrawalData);
+
+    // 🔹 Add history
+    await addHistory({
+      userId,
+      action: UserActionEnum.WITHDRAWAL_REQUEST,
+      amount: finalAmount,
+      category: UserCategoryEnum.PAYOUT,
+      metadata: {
+        method,
+        balanceBefore,
+        balanceAfter: wallet.balanceAmount,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Withdrawal request successful via ${method}`,
+      data: {
+        withdrawal,
+        wallet: {
+          balanceAmount: wallet.balanceAmount,
+          pendingAmount: wallet.pendingAmount,
+          paidAmount: wallet.paidAmount,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error processing withdrawal:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Server error", error: error.message });
+  }
+};
 
 // export const updateAffWithdrawalStatus = async (req, res) => {
 //   try {
@@ -172,7 +337,7 @@ export const updateAffWithdrawalStatus = async (req, res) => {
 //          message: "Withdrawal request not found.",
 //        });
 //      }
- 
+
 //      // ✅ Check user's pending amount before marking completed
 //      const user = withdrawal.user;
 //      if (status === "COMPLETED" && (!user.payouts || user.payouts.pendingAmount <= 0)) {

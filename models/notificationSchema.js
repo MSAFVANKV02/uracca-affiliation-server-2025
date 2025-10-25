@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { UserActionEnum, UserCategoryEnum } from "./enum";
+import { UserActionEnum, UserCategoryEnum } from "./enum.js";
 
 const NotificationsSchema = new mongoose.Schema(
   {
@@ -27,17 +27,17 @@ const NotificationsSchema = new mongoose.Schema(
     },
 
     metadata: { type: Object, default: {} }, // store extra info (method, IP, etc.)
-
-    message: {
+    message:String,
+    messageType: {
       type: String,
-      default: function (this) {
+      default: function () {
         switch (this.action) {
           case UserActionEnum.SET_PIN:
             return "Withdrawal PIN set";
           case UserActionEnum.CHANGE_PIN:
             return "Withdrawal PIN changed";
           case UserActionEnum.WITHDRAWAL_ACCEPT:
-            return "Withdrawal Accepted";
+            return "Withdrawal accepted";
           case UserActionEnum.WITHDRAWAL_REJECT:
             return "Withdrawal rejected";
           case UserActionEnum.WITHDRAWAL_REQUEST:
@@ -50,6 +50,8 @@ const NotificationsSchema = new mongoose.Schema(
             return "User deleted the account permanently";
           case UserActionEnum.USER_REFER:
             return "User used the referral link";
+            case UserActionEnum.COMMISSION_PAYOUT:
+              return "Commission payout processed";
           default:
             return "User action recorded";
         }

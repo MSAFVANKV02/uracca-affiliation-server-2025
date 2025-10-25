@@ -101,22 +101,31 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
     // 🧩 Step A: Determine Commission Percentage
     // ----------------------------------------------------------------
     let commissionPercent = 0;
-    if (user?.affType?.commission) {
+    if (user?.affType?.commission > 0) {
       commissionPercent = user.affType.commission;
     } else if (productId) {
       const product = await Product.findById(productId);
-      if (product?.commission) {
+      if (product?.commission > 0) {
         commissionPercent = product.commission;
       } else {
         const platform = await Platform.findOne({ adminId: campaign.company.accountId });
+        if (!platform || (platform.commission ?? 0) <= 0) {
+          return res.status(400).json({ message: "No commission defined for this order" });
+        }
         commissionPercent = platform?.commission ?? 0;
       }
     } else {
       const platform = await Platform.findOne({ adminId: campaign.company.accountId });
+      if (!platform || (platform.commission ?? 0) <= 0) {
+        return res.status(400).json({ message: "No commission defined for this order" });
+      }
       commissionPercent = platform?.commission ?? 0;
     }
 
     const commissionAmount = (orderAmount * commissionPercent) / 100;
+
+    console.log(commissionAmount, "commissionAmount");
+    
 
     // ----------------------------------------------------------------
     // 🧩 Step B: Calculate TDS
@@ -135,8 +144,11 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
         ? (commissionAmount * (platform.tdsUnLinkedMethods.amount || 0)) / 100
         : platform.tdsUnLinkedMethods.amount || 0;
     }
+    console.log(tdsType, "tdsType");
 
     const finalCommission = commissionAmount - tdsAmount;
+    console.log(finalCommission, "finalCommission");
+
 
     // ----------------------------------------------------------------
     // 🧩 Step C: Save commission as separate document
@@ -158,6 +170,8 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
     campaign.commissionDetails.totalCommission += commissionAmount;
     campaign.commissionDetails.pendingCommission += finalCommission;
     campaign.commissionDetails.totalTdsCutOff += tdsAmount;
+    campaign.commissionRecords.push(commissionRecord._id);
+    campaign.commissionDetails.totalCommissionWithTds += finalCommission;
     campaign.ordersCount += 1;
     await campaign.save();
 
@@ -168,6 +182,8 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
     user.commissionDetails.totalCommission += commissionAmount;
     user.commissionDetails.pendingCommission += finalCommission;
     user.commissionDetails.totalTdsCutOff += tdsAmount;
+    user.commissionDetails.totalCommissionWithTds += finalCommission;
+
     await user.save();
 
     // ----------------------------------------------------------------
