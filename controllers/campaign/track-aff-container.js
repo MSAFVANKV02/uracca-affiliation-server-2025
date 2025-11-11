@@ -4,6 +4,7 @@ import { Commissions } from "../../models/commissionSchema.js";
 import { Platform } from "../../models/platformSchema.js";
 import { Product } from "../../models/productSchema.js";
 import { getAndValidatePlatformProducts } from "../../utils/platformProductUtils.js";
+import { CalculateTDS } from "./calculateTDS.js";
 
 export const trackAffiliateClick = async (req, res) => {
   try {
@@ -189,7 +190,7 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
     // 🧩 Step D: Calculate TDS (Reusable Function)
     // ----------------------------------------------------------------
     const tdsType = user?.affType?.tdsType || "LINKED";
-    const { tdsAmount, finalCommission } = calculateTDS(commissionAmount, tdsType, platform);
+    const { tdsAmount, finalCommission } = CalculateTDS(commissionAmount, tdsType, platform);
 
     // ----------------------------------------------------------------
     // 🧩 Step E: Save commission record

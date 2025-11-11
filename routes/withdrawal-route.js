@@ -9,10 +9,13 @@ import {
   authenticateAdmin,
   authenticateUser,
 } from "../middleware/middleware.js";
+import { payWithdrawalToUser } from "../controllers/withdrawals/withdrawal-payout-controller.js";
 const router = express.Router();
 
 router.get("/all", authenticateAdmin, getAllAffWithdrawalHistory);
-router.patch("/update-status", checkUserStatus, updateAffWithdrawalStatus);
+router.patch("/action", checkUserStatus, updateAffWithdrawalStatus);
+router.patch("/payout", payWithdrawalToUser);
+
 
 // --------- user withdrawal route ------------- >
 router.post(

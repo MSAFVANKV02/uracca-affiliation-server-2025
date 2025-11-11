@@ -7,6 +7,9 @@ import morgan from "morgan";
 import session from "express-session";
 import cookieSession from "cookie-session";
 
+import "./utils/loadEnv.js";
+
+
 import dotenv from "dotenv";
 import path from "path";
 import { errorHandler } from "./middleware/errorMiddleware.js";

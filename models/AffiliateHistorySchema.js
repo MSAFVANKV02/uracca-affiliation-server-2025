@@ -8,7 +8,7 @@ const affiliateHistorySchema = new mongoose.Schema(
     action: {
       type: String,
       enum: Object.values(UserActionEnum),
-      required: true,
+      // required: true,
     },
 
     // optional type for categorization (payout, account, referral, etc.)

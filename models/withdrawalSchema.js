@@ -16,9 +16,15 @@ const WithdrawalSchema = new mongoose.Schema(
       },
      },
     withdrawalAmount: { type: Number, required: true },
+    cancelledAmount: { type: Number},
     requestedAmount: { type: Number, required: true }, // user’s requested amount
     transferCharge: { type: Number, default: 0 },
     tdsAmount: { type: Number, required: true },
+
+    // ✅ Razorpay payout tracking
+    razorpayContactId: { type: String, default: "" },
+    razorpayFundAccountId: { type: String, default: "" },
+    razorpayPayoutId: { type: String, default: "" },
   
     balanceBefore: { type: Number, required: true },
     balanceAfter: { type: Number, required: true },

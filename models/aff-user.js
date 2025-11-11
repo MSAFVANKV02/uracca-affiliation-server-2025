@@ -20,12 +20,20 @@ const socialSchema = new mongoose.Schema({
 });
 
 const affTypeSchema = new mongoose.Schema({
-  type: { type: String,default:"INDIVIDUAL" , enum:["INDIVIDUAL","SPECIAL","COMPANY"] },
+  type: {
+    type: String,
+    default: "INDIVIDUAL",
+    enum: ["INDIVIDUAL", "SPECIAL", "COMPANY"],
+  },
   commission: { type: Number },
-  commissionType:  { type: String,default:"ONLY_AFF_PRODUCT" , enum:["ALL_PRODUCT","ONLY_AFF_PRODUCT"] },
+  commissionType: {
+    type: String,
+    default: "ONLY_AFF_PRODUCT",
+    enum: ["ALL_PRODUCT", "ONLY_AFF_PRODUCT"],
+  },
   tdsType: {
     type: String,
-    enum: ["LINKED","UN_LINKED"],
+    enum: ["LINKED", "UN_LINKED"],
     default: "LINKED",
   },
 });
@@ -39,12 +47,9 @@ const notificationsSchema = new mongoose.Schema({
   },
 });
 
-
-
 const documentSchema = new mongoose.Schema({
   url: { type: String, required: true },
   type: { type: String, required: true },
-  
 });
 
 // ✅ Referral ID generator
@@ -79,7 +84,7 @@ const userSchema = new mongoose.Schema(
           default: "ACCEPTED", // ✅ just a string, not array
         },
       },
-    ],    
+    ],
     workingOn: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     userType: {
       type: String,
@@ -87,7 +92,7 @@ const userSchema = new mongoose.Schema(
       default: UserTypeEnum.USER,
       required: true,
     },
-    affType:affTypeSchema,
+    affType: affTypeSchema,
     avatar: String,
     fullName: String,
     email: String,
@@ -127,7 +132,18 @@ const userSchema = new mongoose.Schema(
         ifscCode: { type: String, default: "" },
       },
     },
-
+    razorpayAccounts: {
+      upi: {
+        contactId: String,
+        fundAccountId: String,
+        isUpdated:Boolean
+      },
+      bank: {
+        contactId: String,
+        fundAccountId: String,
+        isUpdated:Boolean
+      },
+    },
 
     registrationVerified: { type: Boolean, default: false },
     campaignStarted: { type: Boolean, default: false },
