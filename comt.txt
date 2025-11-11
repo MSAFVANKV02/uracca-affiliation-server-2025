@@ -1,0 +1,71 @@
+// import { auth } from "@/app/auth";
+// import { connectDB } from "@/lib/db/mongodb";
+// import User from "@/models/User";
+// import { NextResponse } from "next/server";
+
+
+
+// export async function PUT(req: Request) {
+//   try {
+//     await connectDB();
+
+//     const session = await auth();
+
+//     if (!session?.user?.id) {
+//       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+//     }
+
+//     const body = await req.json();
+//     console.log(body, "body");
+
+//     if (!body || Object.keys(body).length === 0) {
+//       return NextResponse.json(
+//         { message: "No data provided to update" },
+//         { status: 400 }
+//       );
+//     }
+
+//     // ⚡ Flatten nested keys for safe update
+//     const updateData: any = {};
+
+//     const flattenObject = (obj: any, prefix = "") => {
+//       for (const key in obj) {
+//         if (!obj.hasOwnProperty(key)) continue;
+//         const value = obj[key];
+//         const path = prefix ? `${prefix}.${key}` : key;
+//         if (value && typeof value === "object" && !Array.isArray(value)) {
+//           flattenObject(value, path);
+//         } else {
+//           updateData[path] = value;
+//         }
+//       }
+//     };
+
+//     flattenObject(body);
+
+//     const updatedUser = await User.findByIdAndUpdate(
+//       session.user.id,
+//       { $set: updateData },
+//       { new: true, runValidators: true }
+//     ).lean();
+
+//     if (!updatedUser) {
+//       return NextResponse.json({ message: "User not found" }, { status: 404 });
+//     }
+
+//     return NextResponse.json(
+//       {
+//         message: "User updated successfully",
+//         data: updatedUser,
+//       },
+//       { status: 200 }
+//     );
+//   } catch (error) {
+//     console.error(error);
+//     return NextResponse.json(
+//       { message: "Internal server error" },
+//       { status: 500 }
+//     );
+//   }
+// }
+option file api/user/options

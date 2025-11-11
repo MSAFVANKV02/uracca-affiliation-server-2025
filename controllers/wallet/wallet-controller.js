@@ -1,4 +1,6 @@
+import { Commissions } from "../../models/commissionSchema.js";
 import { Wallet } from "../../models/walletSchema.js";
+import { AlreadyReportedError, MissingFieldError, NotFoundError } from "../../utils/errors.js";
 
 /**
  * Get all wallets
@@ -60,5 +62,77 @@ export const getUserAdminWallet = async (req, res) => {
   } catch (err) {
     console.error("❌ Error fetching user wallet:", err);
     return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+// ----------------------------------------------------------------
+// 🧩 Step : cancel commission amount when order cancel / return
+// ----------------------------------------------------------------
+
+export const cancelWalletCommissionAmountFromAff = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+
+    if (!orderId) {
+      throw new MissingFieldError("Order Id is missing");
+    }
+
+    const commission = await Commissions.findOne({ orderId });
+
+    if (!commission) {
+      throw new NotFoundError("Commission not found for given order ID");
+    }
+
+    const wallet = await Wallet.findOne({ userId: commission.userId });
+
+    if (!wallet) {
+      throw new NotFoundError("Wallet not found for given order ID");
+    }
+
+    if (commission.status = "CANCELLED") {
+      throw new AlreadyReportedError("This commission has been already cancelled");
+    }
+
+    // 3️⃣ Only proceed if commission is PAID
+    if (commission.status === "PAID") {
+      const deductionAmount = commission.finalCommission ?? 0;
+      // ✅ update wallet balance and log a transaction
+      wallet.balanceAmount = Math.max(
+        0,
+        wallet.balanceAmount - deductionAmount
+      );
+      wallet.cancelledAmount += deductionAmount;
+
+      wallet.transactions.push({
+        type: "COMMISSION",
+        refId: commission._id,
+        amount: -deductionAmount,
+        status: "CANCELLED",
+        createdAt: new Date(),
+      });
+
+      await wallet.save();
+
+      // console.log(wallet);
+      // console.log(commission);
+      // ✅ update commission status
+      commission.status = "CANCELLED";
+      await commission.save();
+
+      return res.status(200).json({
+        success: true,
+        message: `Commission cancelled and ${deductionAmount} deducted from wallet.`,
+      });
+    } else {
+      commission.status = "CANCELLED";
+      await commission.save();
+      // Commission is not PAID
+      return res.status(200).json({
+        success: false,
+        message: "commission cancelled with this orderId ",
+      });
+    }
+  } catch (error) {
+    next(error);
   }
 };

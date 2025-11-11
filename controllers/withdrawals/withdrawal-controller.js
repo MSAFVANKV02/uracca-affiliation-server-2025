@@ -6,34 +6,98 @@ import Withdrawals from "../../models/withdrawalSchema.js";
 import { addHistory } from "../../utils/history.js";
 import bcrypt from "bcryptjs";
 
+// export const getAllAffWithdrawalHistory = async (req, res) => {
+//   try {
+//     const filters = {};
+//     for (const key in req.query) {
+//       if (req.query[key]) {
+//         // console.log(req.query,'req.query');
+
+//         filters[key] = req.query[key];
+//       }
+//     }
+
+//     const users = Object.keys(filters).length
+//       ? await Withdrawals.find(filters).populate("user")
+//       : await Withdrawals.find().populate("user"); // fixed here
+
+//     res.status(200).json({
+//       success: true,
+//       count: users.length,
+//       data: users,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching users:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Server error while fetching users",
+//     });
+//   }
+// };
+
 export const getAllAffWithdrawalHistory = async (req, res) => {
   try {
     const filters = {};
     for (const key in req.query) {
-      if (req.query[key]) {
-        // console.log(req.query,'req.query');
-
-        filters[key] = req.query[key];
-      }
+      if (req.query[key]) filters[key] = req.query[key];
     }
 
-    const users = Object.keys(filters).length
-      ? await Withdrawals.find(filters).populate("user")
-      : await Withdrawals.find().populate("user"); // fixed here
+    const adminId = req.admin;
+
+    // ✅ Validate admin
+    const admin = await AffUser.findById(adminId);
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin not found",
+      });
+    }
+
+    // ✅ Find all affiliate users where collaborateWith includes this admin
+    const affUsers = await AffUser.find({
+      collaborateWith: {
+        $elemMatch: {
+          accountId: adminId,
+          status: "ACCEPTED",
+        },
+      },
+    }).select("_id");
+
+    const affUserIds = affUsers.map((u) => u._id);
+
+    if (affUserIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        data: [],
+        message: "No affiliate users linked with this admin",
+      });
+    }
+
+    // ✅ Filter withdrawals that belong to these affiliate users
+    const query = {
+      ...filters,
+      user: { $in: affUserIds },
+    };
+
+    const withdrawals = await Withdrawals.find(query)
+      .populate("user", "fullName email mobile referralId userName")
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
-      count: users.length,
-      data: users,
+      count: withdrawals.length,
+      data: withdrawals,
     });
   } catch (error) {
-    console.error("Error fetching users:", error);
+    console.error("Error fetching affiliate withdrawal history:", error);
     res.status(500).json({
       success: false,
-      message: "Server error while fetching users",
+      message: "Server error while fetching affiliate withdrawals",
     });
   }
 };
+
 
 // update Aff Withdrawal Status
 export const updateAffWithdrawalStatus = async (req, res) => {

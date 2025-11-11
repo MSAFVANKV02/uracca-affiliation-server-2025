@@ -69,6 +69,9 @@ const allowedOrigins = [
   "http://localhost:3001",
   "http://localhost:3002",
   "http://localhost:3005",
+  "http://192.168.31.146:3000",
+  "http://localhost:5001"
+
 ];
 
 // app.use(
@@ -92,7 +95,7 @@ app.use(
   })
 );
 
-app.use(errorHandler);
+
 
 // ------- admins apis ----------- ////
 
@@ -115,9 +118,9 @@ app.use("/api/affiliate", affiliateRouter);
 app.use("/api/wallet", walletRouter);
 app.use("/api/user/withdrawal", withdrawalRouter);
 
+app.use(errorHandler);
 
-
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0",() => {
   console.log(chalk.cyan(`Server is running on port ${PORT}`));
 });
 

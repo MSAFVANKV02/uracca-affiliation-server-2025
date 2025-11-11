@@ -69,6 +69,9 @@ export const authenticateAdmin = async (req, res, next) => {
       return res.status(403).json({ success: false, message: "Access denied. Admins only." });
     }
 
+    // console.log(admin);
+    
+
     // 4️⃣ Attach admin to request
     req.admin = admin;
     next();

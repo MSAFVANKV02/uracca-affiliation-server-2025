@@ -94,7 +94,7 @@ export const createCampaign = async (req, res) => {
 export const getUserCampaigns = async (req, res) => {
   try {
     const user = req.user; // ✅ authenticated user from middleware
-    console.log(user, "user req");
+    // console.log(user, "user req");
 
     if (!user) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -124,3 +124,6 @@ export const getUserCampaigns = async (req, res) => {
     });
   }
 };
+
+
+ 
