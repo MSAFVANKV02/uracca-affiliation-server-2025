@@ -22,7 +22,10 @@ const requiredEnvKeys = [
   "RAZORPAY_KEY_ID",
   "RAZORPAY_KEY_SECRET",
   "ENTITY_ID",
-  "SENDER_ID"
+  "SENDER_ID",
+  "RAZORPAY_KEY_ID",
+"RAZORPAY_KEY_SECRET",
+"RAZORPAY_ACCOUNT_NUMBER"
 ];
 const optionalEnvKeys = [
   "FAST2SMS_API_KEY",
