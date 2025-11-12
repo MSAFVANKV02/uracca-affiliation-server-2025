@@ -1,4 +1,6 @@
 import express from "express";
+const router = express.Router();
+
 import {
   getAllAffWithdrawalHistory,
   processWithdrawal,
@@ -10,7 +12,6 @@ import {
   authenticateUser,
 } from "../middleware/middleware.js";
 import { payWithdrawalToUser } from "../controllers/withdrawals/withdrawal-payout-controller.js";
-const router = express.Router();
 
 router.get("/all", authenticateAdmin, getAllAffWithdrawalHistory);
 router.patch("/action", checkUserStatus, updateAffWithdrawalStatus);

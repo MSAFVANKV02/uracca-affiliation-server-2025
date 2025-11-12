@@ -1,5 +1,11 @@
 import mongoose from "mongoose";
 
+const rechargeSchema = new mongoose.Schema({
+  rechargeAmount: { type: Number },
+  type: { type: String , enum:["LOCAL","PRODUCTION"] },
+  date: { type: String },
+});
+
 const walletSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
@@ -11,10 +17,12 @@ const walletSchema = new mongoose.Schema(
     cancelledAmount: { type: Number, default: 0 },  // cancelled commissions
     commissionAmount: { type: Number, default: 0 }, // total commission earned
     balanceAmount: { type: Number, default: 0 },    // available balance for withdrawal
+    recharge: rechargeSchema,    // available balance for withdrawal
+
 
     transactions: [
       {
-        type: { type: String, enum: ["COMMISSION", "WITHDRAWAL", "REFUND"], required: true },
+        type: { type: String, enum: ["COMMISSION", "WITHDRAWAL", "REFUND", "RECHARGE"], required: true },
         refId: { type: mongoose.Schema.Types.ObjectId }, // ref to Commissions, Withdrawals, etc.
         amount: { type: Number, required: true },
         tdsAmount: { type: Number, default: 0 },

@@ -28,6 +28,10 @@ import affiliateRouter from "./routes/affiliate-route.js";
 import walletRouter from "./routes/wallet-route.js";
 import bulkRouter from "./routes/bulk-route.js";
 
+// === web hook ====== //
+import WebHookRouter from "./routes/web-hook-route.js";
+
+
 
 
 
@@ -102,6 +106,9 @@ app.use(
 
 // ------- admins apis ----------- ////
 
+app.get("/", (req, res) => res.send("success"));
+
+
 app.use("/api/user", userRouter);
 app.use("/api/admin/withdrawal", withdrawalRouter);
 app.use("/api/admin/feedbacks", feedbackRouter);
@@ -120,6 +127,11 @@ app.use("/api/users/campaign", campaignRouter);
 app.use("/api/affiliate", affiliateRouter);
 app.use("/api/wallet", walletRouter);
 app.use("/api/user/withdrawal", withdrawalRouter);
+
+// ------- webhook apis ----------- ////
+
+app.use("/api/web-hook", WebHookRouter);
+
 
 app.use(errorHandler);
 
