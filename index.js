@@ -31,6 +31,10 @@ import bulkRouter from "./routes/bulk-route.js";
 // === web hook ====== //
 import WebHookRouter from "./routes/web-hook-route.js";
 
+// import { createLimiter } from "./middleware/rateLimit.js";
+import { rateLimitConfig } from "./config/rateLimitConfig.js";
+import { makeLimiter } from "./middleware/rateLimiter.js";
+
 
 
 
@@ -106,7 +110,45 @@ app.use(
 
 // ------- admins apis ----------- ////
 
+// Sort routes so deeper paths apply first
+rateLimitConfig
+  .sort((a, b) => b.route.length - a.route.length)
+  .forEach((item) => {
+    if (item.noLimit) {
+      console.log("No limit applied for", item.route);
+      return;
+    }
+
+    const limiter = makeLimiter(item.window, item.max);
+
+    console.log(
+      `Rate limit applied → ${item.route} | ${item.max} req / ${item.window}`
+    );
+
+    app.use(item.route, limiter);
+  });
+
+
 app.get("/", (req, res) => res.send("success"));
+
+
+// Dynamically apply rate limits for each route
+// rateLimitConfig.forEach((item) => {
+//   if (item.noLimit) {
+//     // no limit, skip applying limiter
+//     console.log("No limit applied for", item.route);
+//     return;
+//   }
+
+//   const limiter = makeLimiter(item.window, item.max);
+
+//   console.log(
+//     `Rate limit applied → ${item.route} | ${item.max} req / ${item.window}`
+//   );
+
+//   app.use(item.route, limiter);
+// });
+
 
 
 app.use("/api/user", userRouter);
