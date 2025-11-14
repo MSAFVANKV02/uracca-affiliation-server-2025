@@ -36,6 +36,7 @@ const affTypeSchema = new mongoose.Schema({
     enum: ["LINKED", "UN_LINKED"],
     default: "LINKED",
   },
+  isTdsEnabled:{ type: Boolean, default: true },
 });
 
 const notificationsSchema = new mongoose.Schema({

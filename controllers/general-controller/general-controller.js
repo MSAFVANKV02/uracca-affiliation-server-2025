@@ -151,7 +151,7 @@ export const getAffGeneralSettings = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: "Settings fetched successfully",
-      data: settings,
+      data: settings[0],
     });
   } catch (error) {
     next(error);

@@ -1,17 +1,16 @@
 export const rateLimitConfig = [
   {
     route: "/api/user",
-    window: "1m",
-    max: 5,
+    noLimit: true, 
   },
   {
-    route: "/api/user/withdrawal",
+    route: "/api/user/withdrawal/new-withdrawal/",
     window: "1m",
-    max: 3,
+    max: 1,
   },
   {
     route: "/api/admin/products",
-    window: "5m",
+    window: "3m",
     max: 30,
   },
   {
@@ -27,13 +26,14 @@ export const rateLimitConfig = [
   },
   {
     route: "/api/users/products",
-    window: "5m",
-    max: 50,
+    noLimit: true, 
   },
   {
     route: "/api/affiliate",
-    window: "1h",
-    max: 100,
+    // window: "1h",
+    // max: 100,
+    // method: "POST",
+    noLimit: true,
   },
   {
     route: "/api/wallet",

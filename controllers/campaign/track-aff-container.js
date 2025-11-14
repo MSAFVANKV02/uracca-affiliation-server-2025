@@ -194,7 +194,9 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
     // 🧩 Step D: Calculate TDS (Reusable Function)
     // ----------------------------------------------------------------
     const tdsType = user?.affType?.tdsType || "LINKED";
-    const { tdsAmount, finalCommission } = CalculateTDS(commissionAmount, tdsType, platform);
+    const isTdsEnabled = user?.affType?.isTdsEnabled ??false
+
+    const { tdsAmount, finalCommission } = CalculateTDS(commissionAmount, tdsType, platform, isTdsEnabled);
 
     // ----------------------------------------------------------------
     // 🧩 Step E: Save commission record

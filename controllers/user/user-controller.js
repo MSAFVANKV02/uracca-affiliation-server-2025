@@ -1,6 +1,34 @@
 import AffUser from "../../models/aff-user.js";
 import { UserTypeEnum } from "../../models/enum.js";
 import { encryptData } from "../../utils/cript-data.js";
+import { NotFoundError } from "../../utils/errors.js";
+
+export const getCurrentUsers = async (req, res) => {
+  try {
+    const adminId = req.admin._id;
+    const userId = req.user._id;
+
+    let checkId = adminId || userId;
+
+    if (!adminId || !userId) {
+      throw new NotFoundError("User Id Not Found!");
+    }
+
+    const user = await AffUser.findById({ _id: checkId });
+
+    if (!user) {
+      throw new NotFoundError("User Not Found!");
+    }
+
+    return res.status(200).json({
+      message: "User Fetching Successfully Completed",
+      data: user,
+      success: true,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const getAllAffUsers = async (req, res) => {
   // console.log('getAllAffUsers');

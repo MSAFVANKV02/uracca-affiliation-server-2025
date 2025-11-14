@@ -7,9 +7,6 @@ import morgan from "morgan";
 import session from "express-session";
 import cookieSession from "cookie-session";
 
-import "./utils/loadEnv.js";
-
-
 import dotenv from "dotenv";
 import path from "path";
 import { errorHandler } from "./middleware/errorMiddleware.js";
@@ -28,18 +25,15 @@ import affiliateRouter from "./routes/affiliate-route.js";
 import walletRouter from "./routes/wallet-route.js";
 import bulkRouter from "./routes/bulk-route.js";
 
-// === web hook ====== //
-import WebHookRouter from "./routes/web-hook-route.js";
-
 // import { createLimiter } from "./middleware/rateLimit.js";
 import { rateLimitConfig } from "./config/rateLimitConfig.js";
 import { makeLimiter } from "./middleware/rateLimiter.js";
 
-
-
-
-
+import "./utils/loadEnv.js";
 import "./cron/commissionPayoutJob.js";
+
+// === web hook ====== //
+import WebHookRouter from "./routes/web-hook-route.js";
 
 dotenv.config();
 
@@ -81,8 +75,7 @@ const allowedOrigins = [
   "http://localhost:3002",
   "http://localhost:3005",
   "http://192.168.31.146:3000",
-  "http://localhost:5001"
-
+  "http://localhost:5001",
 ];
 
 // app.use(
@@ -106,8 +99,6 @@ app.use(
   })
 );
 
-
-
 // ------- admins apis ----------- ////
 
 // Sort routes so deeper paths apply first
@@ -121,16 +112,18 @@ rateLimitConfig
 
     const limiter = makeLimiter(item.window, item.max);
 
-    console.log(
-      `Rate limit applied → ${item.route} | ${item.max} req / ${item.window}`
-    );
+    // console.log(process.env.NODE_ENV);
+    const development = process.env.NODE_ENV;
+    if (development) {
+      console.log(
+        `Rate limit applied → ${item.route} | ${item.max} req / ${item.window}`
+      );
+    }
 
     app.use(item.route, limiter);
   });
 
-
 app.get("/", (req, res) => res.send("success"));
-
 
 // Dynamically apply rate limits for each route
 // rateLimitConfig.forEach((item) => {
@@ -149,8 +142,6 @@ app.get("/", (req, res) => res.send("success"));
 //   app.use(item.route, limiter);
 // });
 
-
-
 app.use("/api/user", userRouter);
 app.use("/api/admin/withdrawal", withdrawalRouter);
 app.use("/api/admin/feedbacks", feedbackRouter);
@@ -159,7 +150,6 @@ app.use("/api/admin/products", productRouter);
 app.use("/test/order", testRouter);
 
 app.use("/api/admin/bulk-details", bulkRouter);
-
 
 // ------- users apis ----------- ////
 app.use("/api/users/products", productRouter);
@@ -174,10 +164,9 @@ app.use("/api/user/withdrawal", withdrawalRouter);
 
 app.use("/api/web-hook", WebHookRouter);
 
-
 app.use(errorHandler);
 
-app.listen(PORT, "0.0.0.0",() => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(chalk.cyan(`Server is running on port ${PORT}`));
 });
 
