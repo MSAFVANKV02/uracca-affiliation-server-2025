@@ -76,7 +76,7 @@ const allowedOrigins = [
   "http://localhost:3005",
   "http://192.168.31.146:3000",
   "http://localhost:5001",
-  "https://www.admin.uracca.com/"
+  "https://www.admin.uracca.com"
 ];
 
 // app.use(
