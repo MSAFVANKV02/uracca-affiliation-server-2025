@@ -90,8 +90,8 @@ import { addCommissionToWallet } from "../helper/wallet.js";
 // });
 
 // ---------- local check function ---------->
-// 🕒 Runs every 1 minute
-cron.schedule("* * * * *", async () => {
+// 🕒 Runs every 1 minute * * * * *
+cron.schedule("0 * * * *", async () => {
   console.log("🔄 [LOCAL TEST] Running immediate commission payout job...");
 
   try {
