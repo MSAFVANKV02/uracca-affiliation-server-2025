@@ -94,21 +94,21 @@ export const createCampaign = async (req, res) => {
 export const getUserCampaigns = async (req, res) => {
   try {
     const user = req.user; // ✅ authenticated user from middleware
-    // console.log(user, "user req");
+    // console.log(user, "user getUserCampaigns");
 
     if (!user) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
     // Optional filter: only campaigns for a specific admin/platform
-    const { adminAccountId } = req.query;
+    const { accountId } = req.query;
 
     const query = { userId: user._id };
-    if (adminAccountId) {
-      query["company.accountId"] = adminAccountId;
+    if (accountId) {
+      query["company.accountId"] = accountId;
     }
 
-    const campaigns = await Campaign.find(query).sort({ createdAt: -1 });
+    const campaigns = await Campaign.find(query).sort({ createdAt: -1 }).populate("userId");
 
     res.status(200).json({
       success: true,
