@@ -297,6 +297,9 @@ export const loginUser = async (req, res) => {
 
     const token = jwt.sign(payload, JWT_SECRET_ADMIN, { expiresIn: "7d" });
     const cookieDomain = getCookieDomain(req);
+
+    console.log(req.headers.origin,'req.headers.origin login--------');
+    
     // Set cookie
     res.cookie("aff-admin-tkn", token, {
       // domain:process.env.NODE_ENV !== "development" &&".uracca",
