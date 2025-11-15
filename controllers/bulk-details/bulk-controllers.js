@@ -12,7 +12,7 @@ import Withdrawals from "../../models/withdrawalSchema.js";
 import { encryptData } from "../../utils/cript-data.js";
 import { clean } from "../../helper/json-cleaner.js";
 
-export const bulkDataController = async (req, res) => {
+export const bulkDataController = async (req, res, next) => {
   try {
     const adminId = req.admin._id;
 
@@ -242,10 +242,11 @@ export const bulkDataController = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching bulk admin data:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error fetching admin dashboard data",
-    });
+    next(error)
+    // res.status(500).json({
+    //   success: false,
+    //   message: "Server error fetching admin dashboard data",
+    // });
   }
 };
 
