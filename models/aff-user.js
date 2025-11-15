@@ -73,6 +73,7 @@ const userSchema = new mongoose.Schema(
   {
     userName: String,
     // domain: { type: String,  },
+    referralCount: { type: Number, default: 0 },
     domain: { type: mongoose.Schema.Types.ObjectId, ref: "domain" },
     campaignAccessKey: [String],
     campaignId: [{ type: mongoose.Schema.Types.ObjectId, ref: "Campaign" }],

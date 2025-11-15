@@ -170,9 +170,9 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
 
     // 🧮 Commission based on total valid product amount
     const commissionAmount = (totalValidAmount * commissionPercent) / 100;
-    console.log(totalValidAmount,'totalValidAmount');
+    // console.log(totalValidAmount,'totalValidAmount');
 
-    console.log(commissionAmount,'commissionAmount');
+    // console.log(commissionAmount,'commissionAmount');
     
 
     // ----------------------------------------------------------------

@@ -1,5 +1,6 @@
 import AffUser from "../../models/aff-user.js";
 import { Campaign } from "../../models/campaignSchema.js";
+import { encryptData } from "../../utils/cript-data.js";
 import generateUniqueCampaignAccessKey from "../../utils/generate-keys.js";
 
 export const createCampaign = async (req, res) => {
@@ -109,11 +110,11 @@ export const getUserCampaigns = async (req, res) => {
     }
 
     const campaigns = await Campaign.find(query).sort({ createdAt: -1 }).populate("userId");
-
+    const encryptedData = encryptData(campaigns);
     res.status(200).json({
       success: true,
       message: "User campaigns fetched successfully",
-      data: campaigns,
+      data: encryptedData,
     });
   } catch (error) {
     console.error("Error fetching user campaigns:", error);

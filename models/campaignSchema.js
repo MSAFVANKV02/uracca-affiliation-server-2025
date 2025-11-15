@@ -35,6 +35,7 @@ const campaignSchema = new mongoose.Schema({
   commissionDetails: {
     totalCommission: { type: Number, default: 0 },
     totalCommissionWithTds: { type: Number, default: 0 },
+    totalCommissionPercentage: { type: Number, default: 0 },
     pendingCommission: { type: Number, default: 0 },
     paidCommission: { type: Number, default: 0 },
     totalTdsCutOff: { type: Number, default: 0 }, // total TDS deducted
