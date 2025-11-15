@@ -98,6 +98,9 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
       "https://affiliate.uracca.com"
     ];
 
+    console.log(allowedOrigins,'allowedOrigins');
+    
+
 app.use(
   cors({
     origin: (origin, callback) => {
