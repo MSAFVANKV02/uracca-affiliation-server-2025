@@ -298,7 +298,8 @@ export const loginUser = async (req, res) => {
 
     // Set cookie
     res.cookie("aff-admin-tkn", token, {
-      httpOnly: false,
+      domain:".uracca",
+      httpOnly: process.env.NODE_ENV !== "development",
       secure: process.env.NODE_ENV === "production",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
