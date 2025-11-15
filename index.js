@@ -150,7 +150,7 @@ app.use("/api/admin/withdrawal", withdrawalRouter);
 app.use("/api/admin/feedbacks", feedbackRouter);
 app.use("/api/admin/platform", platformRouter);
 app.use("/api/admin/products", productRouter);
-app.use("/test/order", testRouter);
+// app.use("/test/order", testRouter);
 
 app.use("/api/admin/bulk-details", bulkRouter);
 

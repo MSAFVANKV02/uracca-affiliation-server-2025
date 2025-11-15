@@ -7,6 +7,7 @@ import Withdrawals from "../../models/withdrawalSchema.js";
 import { addHistory } from "../../utils/history.js";
 import bcrypt from "bcryptjs";
 import { createRazorpayContactAndFund } from "../../lib/RazorpayContactAndFund.js";
+import { encryptData } from "../../utils/cript-data.js";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID ?? "rzp_test_4YU8jVusTNczuc",
@@ -94,13 +95,15 @@ export const getAllAffWithdrawalHistory = async (req, res) => {
       )
       .sort({ createdAt: -1 });
 
+    const encryptedData = encryptData(withdrawals);
+
     res.status(200).json({
       success: true,
       count: withdrawals.length,
-      data: withdrawals,
+      data: encryptedData,
     });
   } catch (error) {
-    console.error("Error fetching affiliate withdrawal history:", error);
+    // console.error("Error fetching affiliate withdrawal history:", error);
     res.status(500).json({
       success: false,
       message: "Server error while fetching affiliate withdrawals",
@@ -512,28 +515,47 @@ export const processWithdrawal = async (req, res) => {
 
     // 🔹 Fetch user
     const user = await AffUser.findById(userId);
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
 
     // 🔹 Validate withdrawal PIN
-    const isPinValid = await bcrypt.compare(withdrawalPin, user.withdrawalDetails.withdrawalPin || "");
+    const isPinValid = await bcrypt.compare(
+      withdrawalPin,
+      user.withdrawalDetails.withdrawalPin || ""
+    );
     if (!isPinValid)
-      return res.status(403).json({ success: false, message: "Invalid withdrawal PIN" });
+      return res
+        .status(403)
+        .json({ success: false, message: "Invalid withdrawal PIN" });
 
     // 🔹 Fetch wallet
     const wallet = await Wallet.findOne({ userId, adminId });
     if (!wallet)
-      return res.status(404).json({ success: false, message: "Wallet not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Wallet not found" });
 
     if (wallet.balanceAmount < amount)
-      return res.status(400).json({ success: false, message: "Insufficient balance" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Insufficient balance" });
 
     if (wallet.pendingAmount > 0)
-      return res.status(400).json({ success: false, message: "You already have a pending withdrawal" });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "You already have a pending withdrawal",
+        });
 
     // 🔹 Fetch platform settings
     const platform = await Platform.findOne({ adminId });
     if (!platform)
-      return res.status(404).json({ success: false, message: "Platform settings not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Platform settings not found" });
 
     // 🔹 Compute final amount after transfer charges
     let finalAmount = amount;
@@ -541,14 +563,16 @@ export const processWithdrawal = async (req, res) => {
       if (platform.bankTransfer.amountType === "FIXED")
         finalAmount -= platform.bankTransfer.transferCharge;
       else if (platform.bankTransfer.amountType === "PERCENT")
-        finalAmount -= (finalAmount * platform.bankTransfer.transferCharge) / 100;
+        finalAmount -=
+          (finalAmount * platform.bankTransfer.transferCharge) / 100;
     }
 
     if (method === "ONLINE" && platform.onlineTransfer.enabled) {
       if (platform.onlineTransfer.amountType === "FIXED")
         finalAmount -= platform.onlineTransfer.transferCharge;
       else if (platform.onlineTransfer.amountType === "PERCENT")
-        finalAmount -= (finalAmount * platform.onlineTransfer.transferCharge) / 100;
+        finalAmount -=
+          (finalAmount * platform.onlineTransfer.transferCharge) / 100;
     }
 
     // 🔹 Update wallet balance
@@ -580,7 +604,8 @@ export const processWithdrawal = async (req, res) => {
       };
 
       // Detect which payment type (UPI or BANK)
-      const methodKey = user.transactionDetails.method === "UPI" ? "upi" : "bank";
+      const methodKey =
+        user.transactionDetails.method === "UPI" ? "upi" : "bank";
       let contactId = user.razorpayAccounts?.[methodKey]?.contactId;
       let fundAccountId = user.razorpayAccounts?.[methodKey]?.fundAccountId;
       const isUpdated = user.razorpayAccounts?.[methodKey]?.isUpdated;

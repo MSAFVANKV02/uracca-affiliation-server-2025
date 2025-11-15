@@ -9,6 +9,7 @@ import { Platform } from "../../models/platformSchema.js";
 import { Product } from "../../models/productSchema.js";
 import { Wallet } from "../../models/walletSchema.js";
 import Withdrawals from "../../models/withdrawalSchema.js";
+import { encryptData } from "../../utils/cript-data.js";
 
 export const bulkDataController = async (req, res) => {
   try {
@@ -183,34 +184,60 @@ export const bulkDataController = async (req, res) => {
       return bTotal - aTotal; // descending order
     });
 
+
+    const encryptedData = encryptData({
+      summary: {
+        totalUsers,
+        pendingApplications,
+        totalCampaigns,
+        totalProducts,
+        totalWallet,
+        balanceAmount,
+        totalPending,
+        totalPaid,
+        approvedUsers,
+        activeUsers,
+        totalConversions,
+        conversionRate,
+        commissionDetails,
+      },
+      users,
+      wallets,
+      campaigns,
+      commissions,
+      withdrawals,
+      products,
+    });
+
     res.status(200).json({
       success: true,
-      data: {
-        summary: {
-          totalUsers,
-          pendingApplications,
-          totalCampaigns,
-          totalProducts,
-          totalWallet,
-          balanceAmount,
-          totalPending,
-          totalPaid,
-          approvedUsers,
-          activeUsers,
-          totalConversions,
-          conversionRate,
-          commissionDetails,
-        },
-        users,
-        wallets,
-        campaigns,
-        commissions,
-        withdrawals,
-        products,
-      },
+      data:encryptedData,
+      // data: {
+      //   summary: {
+      //     totalUsers,
+      //     pendingApplications,
+      //     totalCampaigns,
+      //     totalProducts,
+      //     totalWallet,
+      //     balanceAmount,
+      //     totalPending,
+      //     totalPaid,
+      //     approvedUsers,
+      //     activeUsers,
+      //     totalConversions,
+      //     conversionRate,
+      //     commissionDetails,
+      //   },
+      //   users,
+      //   wallets,
+      //   campaigns,
+      //   commissions,
+      //   withdrawals,
+      //   products,
+      // },
     });
   } catch (error) {
-    console.error("Error fetching bulk admin data:", error);
+    // console.error("Error fetching bulk admin data:", error);
     res.status(500).json({
       success: false,
       message: "Server error fetching admin dashboard data",
@@ -359,24 +386,39 @@ export const getEarningChartDataController = async (req, res) => {
     const thisYearEarnings = commissions
       .filter((c) => c.createdAt >= startOfYear)
       .reduce((acc, c) => acc + (c.finalCommission || c.commissionAmount || 0), 0);
+
+
+      const encryptedData = encryptData({
+        summary: {
+          totalCommission,
+          totalConversions,
+          conversionRate: conversionRate.toFixed(2),
+        todayEarnings,
+        thisWeekEarnings,
+        thisMonthEarnings,
+        thisYearEarnings,
+        },
+        chartData, // ✅ complete dataset for chart, with 0s where no data
+      })
   
       res.status(200).json({
         success: true,
-        data: {
-          summary: {
-            totalCommission,
-            totalConversions,
-            conversionRate: conversionRate.toFixed(2),
-          todayEarnings,
-          thisWeekEarnings,
-          thisMonthEarnings,
-          thisYearEarnings,
-          },
-          chartData, // ✅ complete dataset for chart, with 0s where no data
-        },
+        data:encryptedData,
+        //  {
+        //   summary: {
+        //     totalCommission,
+        //     totalConversions,
+        //     conversionRate: conversionRate.toFixed(2),
+        //   todayEarnings,
+        //   thisWeekEarnings,
+        //   thisMonthEarnings,
+        //   thisYearEarnings,
+        //   },
+        //   chartData, // ✅ complete dataset for chart, with 0s where no data
+        // },
       });
     } catch (error) {
-      console.error("Error fetching earning chart data:", error);
+      // console.error("Error fetching earning chart data:", error);
       res.status(500).json({
         success: false,
         message: "Server error fetching earning chart data",
