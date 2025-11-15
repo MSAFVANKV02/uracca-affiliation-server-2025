@@ -67,19 +67,20 @@ app.use(
 
 app.use(morgan("dev"));
 
-const allowedOrigins = [
-  "https://www.uracca.com",
-  "https://www.admin.uracca.com",
-  "http://localhost:3000",
-  "http://localhost:3001",
-  "http://localhost:3002",
-  "http://localhost:3005",
-  "http://192.168.31.146:3000",
-  "http://localhost:5001",
-  "https://www.admin.uracca.com",
-  "https://admin.uracca.com",
+// const allowedOrigins = [
+//   "https://www.uracca.com",
+//   "https://www.admin.uracca.com",
+//   "http://localhost:3000",
+//   "http://localhost:3001",
+//   "http://localhost:3002",
+//   "http://localhost:3005",
+//   "http://192.168.31.146:3000",
+//   "http://localhost:5001",
+//   "https://www.admin.uracca.com",
+//   "https://admin.uracca.com",
+//   "https://affiliate.uracca.com"
 
-];
+// ];
 
 // app.use(
 //   cors({
@@ -87,6 +88,15 @@ const allowedOrigins = [
 //     credentials: true,
 //   })
 // );
+
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim())
+  : [
+      "https://www.uracca.com",
+      "https://uracca.com",
+      "https://www.admin.uracca.com",
+      "https://affiliate.uracca.com"
+    ];
 
 app.use(
   cors({
