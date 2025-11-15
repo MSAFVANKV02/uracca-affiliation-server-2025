@@ -5,6 +5,7 @@ import { Platform } from "../../models/platformSchema.js";
 import { ExtractDomainParts } from "../../helper/domain-existence.js";
 
 import Domains from "../../models/domainSchema.js";
+import { getCookieDomain } from "../../helper/req-call.js";
 
 const JWT_SECRET_ADMIN = process.env.JWT_SECRET_ADMIN || "supersecretkey";
 
@@ -295,18 +296,15 @@ export const loginUser = async (req, res) => {
     };
 
     const token = jwt.sign(payload, JWT_SECRET_ADMIN, { expiresIn: "7d" });
-
+    const cookieDomain = getCookieDomain(req);
     // Set cookie
     res.cookie("aff-admin-tkn", token, {
       // domain:process.env.NODE_ENV !== "development" &&".uracca",
       // httpOnly: process.env.NODE_ENV !== "development",
       // secure: process.env.NODE_ENV === "production",
       // maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      secure: process.env.NODE_ENV === "production",
-      domain:
-        process.env.NODE_ENV === "development"
-          ? ".localhost"
-          : process.env.COOKIE_DOMAIN,
+      secure: req.headers.origin?.startsWith("https://"),
+      domain:cookieDomain,
       sameSite: "Strict",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });

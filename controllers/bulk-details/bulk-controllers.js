@@ -241,7 +241,7 @@ export const bulkDataController = async (req, res) => {
       // },
     });
   } catch (error) {
-    // console.error("Error fetching bulk admin data:", error);
+    console.error("Error fetching bulk admin data:", error);
     res.status(500).json({
       success: false,
       message: "Server error fetching admin dashboard data",
@@ -443,7 +443,7 @@ export const getEarningChartDataController = async (req, res) => {
       // },
     });
   } catch (error) {
-    // console.error("Error fetching earning chart data:", error);
+    console.error("Error fetching earning chart data:", error);
     res.status(500).json({
       success: false,
       message: "Server error fetching earning chart data",
