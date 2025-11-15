@@ -10,6 +10,7 @@ import { Product } from "../../models/productSchema.js";
 import { Wallet } from "../../models/walletSchema.js";
 import Withdrawals from "../../models/withdrawalSchema.js";
 import { encryptData } from "../../utils/cript-data.js";
+import { clean } from "../../helper/json-cleaner.js";
 
 export const bulkDataController = async (req, res) => {
   try {
@@ -184,8 +185,8 @@ export const bulkDataController = async (req, res) => {
       return bTotal - aTotal; // descending order
     });
 
-
-    const encryptedData = encryptData({
+    // 🟢 CLEAN ALL DATA before encrypting
+    const safePayload = clean({
       summary: {
         totalUsers,
         pendingApplications,
@@ -209,9 +210,12 @@ export const bulkDataController = async (req, res) => {
       products,
     });
 
+    // 🟢 ENCRYPT
+    const encryptedData = encryptData(safePayload);
+
     res.status(200).json({
       success: true,
-      data:encryptedData,
+      data: encryptedData,
       // data: {
       //   summary: {
       //     totalUsers,
@@ -245,124 +249,131 @@ export const bulkDataController = async (req, res) => {
   }
 };
 
-
-
 /**
  * Get earning + conversion chart data (daily / monthly / yearly)
  * Returns totals + chart datasets for line/bar graphs
  */
 export const getEarningChartDataController = async (req, res) => {
-    try {
-      const adminId = req.admin._id;
-      const { filter = "monthly" } = req.query;
-  
-      const now = new Date();
-      let startDate, groupFormat;
-  
-      switch (filter) {
-        case "daily":
-          startDate = new Date(now);
-          startDate.setDate(now.getDate() - 6); // last 7 days
-          groupFormat = { day: "2-digit", month: "short" };
-          break;
-        case "weekly":
-          startDate = new Date(now);
-          startDate.setDate(now.getDate() - 30); // last 4 weeks
-          groupFormat = { day: "2-digit", month: "short" };
-          break;
-        case "monthly":
-          startDate = new Date(now.getFullYear(), 0, 1); // start of year
-          groupFormat = { month: "short" };
-          break;
-        case "yearly":
-          startDate = new Date(now.getFullYear() - 4, 0, 1); // last 5 years
-          groupFormat = { year: "numeric" };
-          break;
-        default:
-          startDate = new Date(now.getFullYear(), 0, 1);
-          groupFormat = { month: "short" };
+  try {
+    const adminId = req.admin._id;
+    const { filter = "monthly" } = req.query;
+
+    const now = new Date();
+    let startDate, groupFormat;
+
+    switch (filter) {
+      case "daily":
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 6); // last 7 days
+        groupFormat = { day: "2-digit", month: "short" };
+        break;
+      case "weekly":
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 30); // last 4 weeks
+        groupFormat = { day: "2-digit", month: "short" };
+        break;
+      case "monthly":
+        startDate = new Date(now.getFullYear(), 0, 1); // start of year
+        groupFormat = { month: "short" };
+        break;
+      case "yearly":
+        startDate = new Date(now.getFullYear() - 4, 0, 1); // last 5 years
+        groupFormat = { year: "numeric" };
+        break;
+      default:
+        startDate = new Date(now.getFullYear(), 0, 1);
+        groupFormat = { month: "short" };
+    }
+
+    // 🧾 Fetch commissions
+    const commissions = await Commissions.find({
+      adminId,
+      createdAt: { $gte: startDate, $lte: now },
+    }).populate("userId", "fullName");
+
+    // 🧩 Build empty buckets for full period
+    const buckets = {};
+
+    if (filter === "daily") {
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        const label = d.toLocaleDateString("en-US", groupFormat);
+        buckets[label] = { label, totalCommission: 0, totalConversions: 0 };
       }
-  
-      // 🧾 Fetch commissions
-      const commissions = await Commissions.find({
-        adminId,
-        createdAt: { $gte: startDate, $lte: now },
-      }).populate("userId", "fullName");
-  
-      // 🧩 Build empty buckets for full period
-      const buckets = {};
-  
-      if (filter === "daily") {
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date(now);
-          d.setDate(now.getDate() - i);
-          const label = d.toLocaleDateString("en-US", groupFormat);
-          buckets[label] = { label, totalCommission: 0, totalConversions: 0 };
-        }
-      } else if (filter === "weekly") {
-        for (let i = 4; i >= 0; i--) {
-          const d = new Date(now);
-          d.setDate(now.getDate() - i * 7);
-          const label = `Week ${5 - i}`; // you can use a proper week number if needed
-          buckets[label] = { label, totalCommission: 0, totalConversions: 0 };
-        }
+    } else if (filter === "weekly") {
+      for (let i = 4; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i * 7);
+        const label = `Week ${5 - i}`; // you can use a proper week number if needed
+        buckets[label] = { label, totalCommission: 0, totalConversions: 0 };
+      }
+    } else if (filter === "monthly") {
+      for (let m = 0; m < 12; m++) {
+        const label = new Date(now.getFullYear(), m).toLocaleString("en-US", {
+          month: "short",
+        });
+        buckets[label] = { label, totalCommission: 0, totalConversions: 0 };
+      }
+    } else if (filter === "yearly") {
+      for (let y = now.getFullYear() - 4; y <= now.getFullYear(); y++) {
+        buckets[y.toString()] = {
+          label: y.toString(),
+          totalCommission: 0,
+          totalConversions: 0,
+        };
+      }
+    }
+
+    // 🧩 Fill buckets with actual commission data
+    for (const c of commissions) {
+      const date = new Date(c.createdAt);
+      let label;
+
+      if (filter === "yearly") {
+        label = date.getFullYear().toString();
       } else if (filter === "monthly") {
-        for (let m = 0; m < 12; m++) {
-          const label = new Date(now.getFullYear(), m).toLocaleString("en-US", { month: "short" });
-          buckets[label] = { label, totalCommission: 0, totalConversions: 0 };
-        }
-      } else if (filter === "yearly") {
-        for (let y = now.getFullYear() - 4; y <= now.getFullYear(); y++) {
-          buckets[y.toString()] = { label: y.toString(), totalCommission: 0, totalConversions: 0 };
-        }
+        label = date.toLocaleString("en-US", { month: "short" });
+      } else if (filter === "weekly") {
+        // simple 7-day grouping
+        const weekIndex = Math.floor((now - date) / (7 * 24 * 60 * 60 * 1000));
+        label = `Week ${Math.max(1, 5 - weekIndex)}`;
+      } else {
+        label = date.toLocaleDateString("en-US", groupFormat);
       }
-  
-      // 🧩 Fill buckets with actual commission data
-      for (const c of commissions) {
-        const date = new Date(c.createdAt);
-        let label;
-  
-        if (filter === "yearly") {
-          label = date.getFullYear().toString();
-        } else if (filter === "monthly") {
-          label = date.toLocaleString("en-US", { month: "short" });
-        } else if (filter === "weekly") {
-          // simple 7-day grouping
-          const weekIndex = Math.floor((now - date) / (7 * 24 * 60 * 60 * 1000));
-          label = `Week ${Math.max(1, 5 - weekIndex)}`;
-        } else {
-          label = date.toLocaleDateString("en-US", groupFormat);
-        }
-  
-        if (buckets[label]) {
-          buckets[label].totalCommission += c.finalCommission || c.commissionAmount || 0;
-          buckets[label].totalConversions += 1;
-        }
+
+      if (buckets[label]) {
+        buckets[label].totalCommission +=
+          c.finalCommission || c.commissionAmount || 0;
+        buckets[label].totalConversions += 1;
       }
-  
-      // 🧮 Convert buckets → chart array
-      const chartData = Object.values(buckets);
-  
-      // 🧾 Summary
-      const totalCommission = commissions.reduce(
-        (acc, c) => acc + (c.finalCommission || c.commissionAmount || 0),
-        0
-      );
-      const totalConversions = commissions.length;
-  
-      const users = await AffUser.find({
-        collaborateWith: { $elemMatch: { accountId: adminId } },
-      }).select("actions.totalClicks");
-  
-      const totalClicks = users.reduce(
-        (acc, u) => acc + (u.actions?.totalClicks || 0),
-        0
-      );
-      const successfulConversions = commissions.filter((c) => c.status === "PAID").length;
-      const conversionRate = totalClicks > 0 ? (successfulConversions / totalClicks) * 100 : 0;
+    }
 
+    // 🧮 Convert buckets → chart array
+    const chartData = Object.values(buckets);
 
-      // 🧾 Compute earnings for today, week, month, year
+    // 🧾 Summary
+    const totalCommission = commissions.reduce(
+      (acc, c) => acc + (c.finalCommission || c.commissionAmount || 0),
+      0
+    );
+    const totalConversions = commissions.length;
+
+    const users = await AffUser.find({
+      collaborateWith: { $elemMatch: { accountId: adminId } },
+    }).select("actions.totalClicks");
+
+    const totalClicks = users.reduce(
+      (acc, u) => acc + (u.actions?.totalClicks || 0),
+      0
+    );
+    const successfulConversions = commissions.filter(
+      (c) => c.status === "PAID"
+    ).length;
+    const conversionRate =
+      totalClicks > 0 ? (successfulConversions / totalClicks) * 100 : 0;
+
+    // 🧾 Compute earnings for today, week, month, year
     const startOfToday = new Date(now.setHours(0, 0, 0, 0));
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay());
@@ -373,68 +384,82 @@ export const getEarningChartDataController = async (req, res) => {
 
     const todayEarnings = commissions
       .filter((c) => c.createdAt >= startOfToday)
-      .reduce((acc, c) => acc + (c.finalCommission || c.commissionAmount || 0), 0);
+      .reduce(
+        (acc, c) => acc + (c.finalCommission || c.commissionAmount || 0),
+        0
+      );
 
     const thisWeekEarnings = commissions
       .filter((c) => c.createdAt >= startOfWeek)
-      .reduce((acc, c) => acc + (c.finalCommission || c.commissionAmount || 0), 0);
+      .reduce(
+        (acc, c) => acc + (c.finalCommission || c.commissionAmount || 0),
+        0
+      );
 
     const thisMonthEarnings = commissions
       .filter((c) => c.createdAt >= startOfMonth)
-      .reduce((acc, c) => acc + (c.finalCommission || c.commissionAmount || 0), 0);
+      .reduce(
+        (acc, c) => acc + (c.finalCommission || c.commissionAmount || 0),
+        0
+      );
 
     const thisYearEarnings = commissions
       .filter((c) => c.createdAt >= startOfYear)
-      .reduce((acc, c) => acc + (c.finalCommission || c.commissionAmount || 0), 0);
+      .reduce(
+        (acc, c) => acc + (c.finalCommission || c.commissionAmount || 0),
+        0
+      );
 
-
-      const encryptedData = encryptData({
-        summary: {
-          totalCommission,
-          totalConversions,
-          conversionRate: conversionRate.toFixed(2),
+    const safePayload = clean({
+      summary: {
+        totalCommission,
+        totalConversions,
+        conversionRate: conversionRate.toFixed(2),
         todayEarnings,
         thisWeekEarnings,
         thisMonthEarnings,
         thisYearEarnings,
-        },
-        chartData, // ✅ complete dataset for chart, with 0s where no data
-      })
-  
-      res.status(200).json({
-        success: true,
-        data:encryptedData,
-        //  {
-        //   summary: {
-        //     totalCommission,
-        //     totalConversions,
-        //     conversionRate: conversionRate.toFixed(2),
-        //   todayEarnings,
-        //   thisWeekEarnings,
-        //   thisMonthEarnings,
-        //   thisYearEarnings,
-        //   },
-        //   chartData, // ✅ complete dataset for chart, with 0s where no data
-        // },
-      });
-    } catch (error) {
-      // console.error("Error fetching earning chart data:", error);
-      res.status(500).json({
-        success: false,
-        message: "Server error fetching earning chart data",
-      });
-    }
-  };
-  
+      },
+      chartData, // ✅ complete dataset for chart, with 0s where no data
+    });
+
+    // 🟢 ENCRYPT
+    const encryptedData = encryptData(safePayload);
+
+    res.status(200).json({
+      success: true,
+      data: encryptedData,
+      //  {
+      //   summary: {
+      //     totalCommission,
+      //     totalConversions,
+      //     conversionRate: conversionRate.toFixed(2),
+      //   todayEarnings,
+      //   thisWeekEarnings,
+      //   thisMonthEarnings,
+      //   thisYearEarnings,
+      //   },
+      //   chartData, // ✅ complete dataset for chart, with 0s where no data
+      // },
+    });
+  } catch (error) {
+    // console.error("Error fetching earning chart data:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error fetching earning chart data",
+    });
+  }
+};
+
 // export const getEarningChartDataController = async (req, res) => {
 //     try {
 //       const adminId = req.admin._id;
 //       const { filter = "monthly" } = req.query; // daily | weekly | monthly | yearly
-  
+
 //       const now = new Date();
 //       let startDate;
 //       let groupFormat; // How to format labels on the chart
-  
+
 //       // 🧮 Decide time range & grouping
 //       switch (filter) {
 //         case "daily":
@@ -459,30 +484,30 @@ export const getEarningChartDataController = async (req, res) => {
 //           startDate = new Date(now.getFullYear(), 0, 1);
 //           groupFormat = { month: "short" };
 //       }
-  
+
 //       // 🧾 Fetch commissions for the admin
 //       const commissions = await Commissions.find({
 //         adminId,
 //         createdAt: { $gte: startDate, $lte: now },
 //       }).populate("userId", "fullName");
-  
+
 //       // Get clicks for conversion calculation
 //       const users = await AffUser.find({
 //         collaborateWith: { $elemMatch: { accountId: adminId } },
 //       }).select("actions.totalClicks");
-  
+
 //       const totalClicks = users.reduce(
 //         (acc, u) => acc + (u.actions?.totalClicks || 0),
 //         0
 //       );
-  
+
 //       // 🧩 Group commissions into buckets (based on filter)
 //       const buckets = {};
-  
+
 //       for (const c of commissions) {
 //         const date = new Date(c.createdAt);
 //         let label;
-  
+
 //         if (filter === "yearly") {
 //           label = date.getFullYear().toString();
 //         } else if (filter === "monthly") {
@@ -490,7 +515,7 @@ export const getEarningChartDataController = async (req, res) => {
 //         } else {
 //           label = date.toLocaleDateString("en-US", groupFormat); // "25 Oct"
 //         }
-  
+
 //         if (!buckets[label]) {
 //           buckets[label] = {
 //             label,
@@ -498,17 +523,17 @@ export const getEarningChartDataController = async (req, res) => {
 //             totalConversions: 0,
 //           };
 //         }
-  
+
 //         buckets[label].totalCommission +=
 //           c.finalCommission || c.commissionAmount || 0;
 //         buckets[label].totalConversions += 1;
 //       }
-  
+
 //       const trend = Object.values(buckets).sort((a, b) => {
 //         if (filter === "yearly") return parseInt(a.label) - parseInt(b.label);
 //         return new Date(a.label) - new Date(b.label);
 //       });
-  
+
 //       // 🧮 Calculate totals
 //       const totalCommission = commissions.reduce(
 //         (acc, c) => acc + (c.finalCommission || c.commissionAmount || 0),
@@ -520,14 +545,14 @@ export const getEarningChartDataController = async (req, res) => {
 //       ).length;
 //       const conversionRate =
 //         totalClicks > 0 ? (successfulConversions / totalClicks) * 100 : 0;
-  
+
 //       // 📊 Chart-ready structure
 //       const chartData = trend.map((t) => ({
 //         name: t.label,
 //         commission: parseFloat(t.totalCommission.toFixed(2)),
 //         conversions: t.totalConversions,
 //       }));
-  
+
 //       return res.status(200).json({
 //         success: true,
 //         data: {

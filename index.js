@@ -89,17 +89,23 @@ app.use(morgan("dev"));
 //   })
 // );
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim())
-  : [
-      "https://www.uracca.com",
-      "https://uracca.com",
-      "https://www.admin.uracca.com",
-      "https://affiliate.uracca.com"
-    ];
+const baseOrigins = [
+  "https://www.uracca.com",
+  "https://uracca.com",
+  "https://www.admin.uracca.com",
+  "https://affiliate.uracca.com",
+];
 
-    console.log(allowedOrigins,'allowedOrigins');
-    
+// Parse env origins (if any)
+const extraOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",")
+      .map((o) => o.trim())
+      .filter(Boolean)
+  : [];
+
+// Merge base + extra (no duplicates)
+const allowedOrigins = Array.from(new Set([...baseOrigins, ...extraOrigins]));
+// console.log(allowedOrigins,'allowedOrigins');
 
 app.use(
   cors({
