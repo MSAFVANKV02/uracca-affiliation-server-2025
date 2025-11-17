@@ -56,8 +56,7 @@ export const registerUser = async (req, res) => {
       /^(https?:\/\/)([a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*)(\.[a-z]{2,})(\/)?$/;
     if (!domainPattern.test(domainUrl)) {
       return res.status(400).json({
-        message:
-          "Invalid domain format. Example: https://www.uracca.com or https://admin.uracca.in",
+        message: `Invalid domain:${domainUrl} format. Example: https://www.uracca.com or https://admin.uracca.in`,
       });
     }
 
@@ -68,18 +67,32 @@ export const registerUser = async (req, res) => {
     // ✅ Check for conflicting domains
     const allDomains = await Domains.find({}, { name: 1, url: 1 });
 
+    // const isConflict = allDomains.some((d) => {
+    //   if (!d.name) return false;
+
+    //   const existingParts = d.name.split(".");
+    //   const newParts = domainName.split(".");
+
+    //   return (
+    //     d.name === domainName ||
+    //     d.name.endsWith(`.${domainName}`) ||
+    //     domainName.endsWith(`.${d.name}`) ||
+    //     existingParts.includes(baseDomain) ||
+    //     newParts.includes(baseDomain)
+    //   );
+    // });
     const isConflict = allDomains.some((d) => {
       if (!d.name) return false;
 
-      const existingParts = d.name.split(".");
-      const newParts = domainName.split(".");
+      const existing = d.name; // stored: admin.uracca or uracca
+      const newDomain = domainName; // extracted from input
+      const sameBase = baseDomain === existing.split(".").slice(-1)[0];
 
       return (
-        d.name === domainName ||
-        d.name.endsWith(`.${domainName}`) ||
-        domainName.endsWith(`.${d.name}`) ||
-        existingParts.includes(baseDomain) ||
-        newParts.includes(baseDomain)
+        existing === newDomain || // exact match
+        existing.endsWith("." + newDomain) || // existing is subdomain of new
+        newDomain.endsWith("." + existing) || // new is subdomain of existing
+        sameBase // share same base domain
       );
     });
 
@@ -106,7 +119,7 @@ export const registerUser = async (req, res) => {
       email,
       password: hashedPassword,
       userType: type || "ADMIN",
-      status: type === "SUPER_ADMIN" ? "APPROVED":"PENDING",
+      status: type === "SUPER_ADMIN" ? "APPROVED" : "PENDING",
       userName: domainName,
       domain: newDomain._id, // assign ObjectId
     });
@@ -137,7 +150,6 @@ export const registerUser = async (req, res) => {
     });
   }
 };
-
 
 // export const registerUser = async (req, res) => {
 //   try {
@@ -298,8 +310,8 @@ export const loginUser = async (req, res) => {
     const token = jwt.sign(payload, JWT_SECRET_ADMIN, { expiresIn: "7d" });
     const cookieDomain = getCookieDomain(req);
 
-    console.log(req.headers.origin,'req.headers.origin login--------');
-    
+    console.log(req.headers.origin, "req.headers.origin login--------");
+
     // Set cookie
     res.cookie("aff-admin-tkn", token, {
       // domain:process.env.NODE_ENV !== "development" &&".uracca",
@@ -307,7 +319,7 @@ export const loginUser = async (req, res) => {
       // secure: process.env.NODE_ENV === "production",
       // maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       secure: req.headers.origin?.startsWith("https://"),
-      domain:cookieDomain,
+      domain: cookieDomain,
       sameSite: "Strict",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });

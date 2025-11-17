@@ -4,6 +4,7 @@ import { Commissions } from "../../models/commissionSchema.js";
 import { Platform } from "../../models/platformSchema.js";
 import { Product } from "../../models/productSchema.js";
 import { getAndValidatePlatformProducts } from "../../utils/platformProductUtils.js";
+import { RecordAction } from "../../utils/recordAction.js";
 import { CalculateTDS } from "./calculateTDS.js";
 
 export const trackAffiliateClick = async (req, res) => {
@@ -50,7 +51,10 @@ export const trackAffiliateClick = async (req, res) => {
     user.actions.totalClicks = (user.actions.totalClicks || 0) + 1;
     await user.save();
 
-    // --- 7️⃣ Return success response ---
+   // --- 7️⃣ Add click to DailyAction Schema ---
+    await RecordAction(user._id, { clicks: 1 });
+
+    // --- 8️⃣ Response ---
     return res.status(200).json({
       success: true,
       message: "Affiliate click tracked successfully",
@@ -231,6 +235,9 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
     user.commissionDetails.totalTdsCutOff += tdsAmount;
     user.commissionDetails.totalCommissionWithTds += finalCommission;
     await user.save();
+
+    // --- 7️⃣ Add click to DailyAction Schema ---
+    await RecordAction(user._id, { orders: 1 });
 
     // ✅ Response
     return res.status(200).json({

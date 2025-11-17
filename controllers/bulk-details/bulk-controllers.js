@@ -11,6 +11,7 @@ import { Wallet } from "../../models/walletSchema.js";
 import Withdrawals from "../../models/withdrawalSchema.js";
 import { encryptData } from "../../utils/cript-data.js";
 import { clean } from "../../helper/json-cleaner.js";
+import DailyAction from "../../models/actionSchema.js";
 
 export const bulkDataController = async (req, res, next) => {
   try {
@@ -448,6 +449,170 @@ export const getEarningChartDataController = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error fetching earning chart data",
+    });
+  }
+};
+
+
+
+
+// ====== user chart
+export const getUserChartDataController = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const adminId = req.user.workingOn;
+
+    const { type = "revenue", period = "monthly" } = req.query;
+
+    if (!adminId) {
+      return res.status(400).json({
+        success: false,
+        message: "User does not have a working admin assigned.",
+      });
+    }
+
+    const now = new Date();
+    let startDate, groupFormat;
+
+    // ⏳ Time grouping logic
+    switch (period) {
+      case "daily":
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 6);
+        groupFormat = { day: "2-digit", month: "short" };
+        break;
+
+      case "weekly":
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 30);
+        groupFormat = { day: "2-digit", month: "short" };
+        break;
+
+      case "monthly":
+        startDate = new Date(now.getFullYear(), 0, 1);
+        groupFormat = { month: "short" };
+        break;
+
+      case "yearly":
+        startDate = new Date(now.getFullYear() - 4, 0, 1);
+        groupFormat = { year: "numeric" };
+        break;
+
+      default:
+        startDate = new Date(now.getFullYear(), 0, 1);
+        groupFormat = { month: "short" };
+    }
+
+    // ---------------------------------------
+    // 🪙 TYPE: REVENUE  → Commissions Model
+    // ---------------------------------------
+    let rawData = [];
+
+    if (type === "revenue") {
+      rawData = await Commissions.find({
+        userId,
+        adminId,
+        createdAt: { $gte: startDate, $lte: now },
+      }).lean();
+    }
+
+    // ---------------------------------------
+    // 🖱 TYPE: CLICKS → DailyActions Model
+    // ---------------------------------------
+    if (type === "clicks") {
+      rawData = await DailyAction.find({
+        userId,
+        adminId,
+        createdAt: { $gte: startDate, $lte: now },
+      }).lean();
+    }
+
+    // ---------------------------------------
+    // 🧩 Build Empty Buckets First
+    // ---------------------------------------
+    const buckets = {};
+
+    if (period === "daily") {
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        const label = d.toLocaleDateString("en-US", groupFormat);
+        buckets[label] = { label, value: 0 };
+      }
+    }
+
+    if (period === "weekly") {
+      for (let i = 4; i >= 0; i--) {
+        const label = `Week ${5 - i}`;
+        buckets[label] = { label, value: 0 };
+      }
+    }
+
+    if (period === "monthly") {
+      for (let m = 0; m < 12; m++) {
+        const label = new Date(now.getFullYear(), m).toLocaleString("en-US", {
+          month: "short",
+        });
+        buckets[label] = { label, value: 0 };
+      }
+    }
+
+    if (period === "yearly") {
+      for (let y = now.getFullYear() - 4; y <= now.getFullYear(); y++) {
+        buckets[y.toString()] = { label: y.toString(), value: 0 };
+      }
+    }
+
+    // ---------------------------------------
+    // 🔄 Fill Buckets with Real Values
+    // ---------------------------------------
+    for (const r of rawData) {
+      const date = new Date(r.createdAt || r.date);
+
+      let label;
+
+      if (period === "yearly") {
+        label = date.getFullYear().toString();
+      } else if (period === "monthly") {
+        label = date.toLocaleString("en-US", { month: "short" });
+      } else if (period === "weekly") {
+        const weekIndex = Math.floor(
+          (now - date) / (7 * 24 * 60 * 60 * 1000)
+        );
+        label = `Week ${Math.max(1, 5 - weekIndex)}`;
+      } else {
+        label = date.toLocaleDateString("en-US", groupFormat);
+      }
+
+      if (!buckets[label]) continue;
+
+      // Revenue
+      if (type === "revenue") {
+        buckets[label].value +=
+          r.finalCommission || r.commissionAmount || 0;
+      }
+
+      // Clicks
+      if (type === "clicks") {
+        buckets[label].value += r.clicks || 0;
+      }
+    }
+
+    const chartData = Object.values(buckets);
+
+    // Encrypt & send
+    const safePayload = clean({ chartData });
+    const encrypted = encryptData(safePayload);
+
+    res.status(200).json({
+      success: true,
+      data: encrypted,
+    });
+  } catch (error) {
+    console.error("User chart error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error fetching user chart data",
     });
   }
 };

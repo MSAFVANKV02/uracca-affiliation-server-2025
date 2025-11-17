@@ -176,6 +176,7 @@ app.use("/api/admin/bulk-details", bulkRouter);
 // ------- users apis ----------- ////
 app.use("/api/users/products", productRouter);
 app.use("/api/users/campaign", campaignRouter);
+app.use("/api/users/bulk-details", bulkRouter);
 
 // ------- affiliate apis ----------- ////
 app.use("/api/affiliate", affiliateRouter);
