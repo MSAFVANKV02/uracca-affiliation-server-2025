@@ -8,6 +8,10 @@ const JWT_SECRET_ADMIN = process.env.JWT_SECRET_ADMIN
 export const authenticateUser = async (req, res, next) => {
   try {
     const token = req.cookies?.aff_ses_server || req.headers.authorization?.split(" ")[1];
+    console.log(req,'req');
+
+    console.log(token,'token');
+    
 
     if (!token) {
       return res.status(401).json({ success: false, message: "Not authorized, no token found." });
