@@ -11,7 +11,7 @@ export const addCommissionToWallet = async ({ userId, adminId, commissionRecord 
     { userId, adminId },
     {
       $inc: {
-        // totalAmount: finalCommission,
+        totalAmount: finalCommission,
         // pendingAmount: finalCommission,
         commissionAmount: finalCommission,
         balanceAmount: finalCommission, // available for withdrawal after payout

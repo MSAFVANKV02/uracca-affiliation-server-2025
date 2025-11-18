@@ -24,6 +24,7 @@ import campaignRouter from "./routes/campaign-route.js";
 import affiliateRouter from "./routes/affiliate-route.js";
 import walletRouter from "./routes/wallet-route.js";
 import bulkRouter from "./routes/bulk-route.js";
+import CommissionRouter from "./routes/commission-route.js";
 
 // import { createLimiter } from "./middleware/rateLimit.js";
 import { rateLimitConfig } from "./config/rateLimitConfig.js";
@@ -176,6 +177,7 @@ app.use("/api/admin/bulk-details", bulkRouter);
 // ------- users apis ----------- ////
 app.use("/api/users/products", productRouter);
 app.use("/api/users/campaign", campaignRouter);
+app.use("/api/users/commission", CommissionRouter);
 app.use("/api/users/bulk-details", bulkRouter);
 
 // ------- affiliate apis ----------- ////

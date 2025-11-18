@@ -474,134 +474,182 @@ export const getUserChartDataController = async (req, res) => {
     const now = new Date();
     let startDate, groupFormat;
 
-    // ⏳ Time grouping logic
+    // windowSize = number of buckets used for current period (used to compute previous window)
+    let windowSize = 1;
+    // unitMs approximations
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const WEEK_MS = 7 * DAY_MS;
+    const MONTH_MS = 30 * DAY_MS;
+    const YEAR_MS = 365 * DAY_MS;
+
     switch (period) {
       case "daily":
         startDate = new Date(now);
-        startDate.setDate(now.getDate() - 6);
+        startDate.setDate(now.getDate() - 6); // last 7 days
         groupFormat = { day: "2-digit", month: "short" };
+        windowSize = 7;
         break;
 
       case "weekly":
         startDate = new Date(now);
-        startDate.setDate(now.getDate() - 30);
+        startDate.setDate(now.getDate() - 30); // last ~4 weeks
         groupFormat = { day: "2-digit", month: "short" };
+        windowSize = 4;
         break;
 
       case "monthly":
-        startDate = new Date(now.getFullYear(), 0, 1);
+        startDate = new Date(now.getFullYear(), 0, 1); // start of year → 12 months
         groupFormat = { month: "short" };
+        windowSize = 12;
         break;
 
       case "yearly":
-        startDate = new Date(now.getFullYear() - 4, 0, 1);
+        startDate = new Date(now.getFullYear() - 4, 0, 1); // last 5 years
         groupFormat = { year: "numeric" };
+        windowSize = 5;
         break;
 
       default:
         startDate = new Date(now.getFullYear(), 0, 1);
         groupFormat = { month: "short" };
+        windowSize = 12;
     }
 
-    // ---------------------------------------
-    // 🪙 TYPE: REVENUE  → Commissions Model
-    // ---------------------------------------
-    let rawData = [];
+    // compute extended start to fetch previous window data too
+    let unitMs = DAY_MS;
+    if (period === "daily") unitMs = DAY_MS;
+    if (period === "weekly") unitMs = WEEK_MS;
+    if (period === "monthly") unitMs = MONTH_MS;
+    if (period === "yearly") unitMs = YEAR_MS;
+
+    const extendedStart = new Date(startDate.getTime() - windowSize * unitMs);
+
+    // Fetch raw data from extendedStart → now so we can compute both current & previous
+    let rawDataExtended = [];
 
     if (type === "revenue") {
-      rawData = await Commissions.find({
+      rawDataExtended = await Commissions.find({
         userId,
         adminId,
-        createdAt: { $gte: startDate, $lte: now },
+        createdAt: { $gte: extendedStart, $lte: now },
+      }).lean();
+    } else {
+      // clicks
+      rawDataExtended = await DailyAction.find({
+        userId,
+        adminId,
+        createdAt: { $gte: extendedStart, $lte: now },
       }).lean();
     }
 
-    // ---------------------------------------
-    // 🖱 TYPE: CLICKS → DailyActions Model
-    // ---------------------------------------
-    if (type === "clicks") {
-      rawData = await DailyAction.find({
-        userId,
-        adminId,
-        createdAt: { $gte: startDate, $lte: now },
-      }).lean();
-    }
-
-    // ---------------------------------------
-    // 🧩 Build Empty Buckets First
-    // ---------------------------------------
-    const buckets = {};
+    // Build buckets for the *current* displayed period (same as before)
+    const currentBuckets = {};
 
     if (period === "daily") {
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now);
         d.setDate(now.getDate() - i);
         const label = d.toLocaleDateString("en-US", groupFormat);
-        buckets[label] = { label, value: 0 };
+        currentBuckets[label] = { label, value: 0 };
       }
-    }
-
-    if (period === "weekly") {
+    } else if (period === "weekly") {
       for (let i = 4; i >= 0; i--) {
         const label = `Week ${5 - i}`;
-        buckets[label] = { label, value: 0 };
+        currentBuckets[label] = { label, value: 0 };
       }
-    }
-
-    if (period === "monthly") {
+    } else if (period === "monthly") {
       for (let m = 0; m < 12; m++) {
         const label = new Date(now.getFullYear(), m).toLocaleString("en-US", {
           month: "short",
         });
-        buckets[label] = { label, value: 0 };
+        currentBuckets[label] = { label, value: 0 };
       }
-    }
-
-    if (period === "yearly") {
+    } else if (period === "yearly") {
       for (let y = now.getFullYear() - 4; y <= now.getFullYear(); y++) {
-        buckets[y.toString()] = { label: y.toString(), value: 0 };
+        currentBuckets[y.toString()] = { label: y.toString(), value: 0 };
       }
     }
 
-    // ---------------------------------------
-    // 🔄 Fill Buckets with Real Values
-    // ---------------------------------------
-    for (const r of rawData) {
+    // Fill current buckets from rawDataExtended (only items >= startDate)
+    for (const r of rawDataExtended) {
       const date = new Date(r.createdAt || r.date);
+      if (date < startDate) continue; // skip previous window items for current buckets
 
       let label;
-
       if (period === "yearly") {
         label = date.getFullYear().toString();
       } else if (period === "monthly") {
         label = date.toLocaleString("en-US", { month: "short" });
       } else if (period === "weekly") {
-        const weekIndex = Math.floor(
-          (now - date) / (7 * 24 * 60 * 60 * 1000)
-        );
+        const weekIndex = Math.floor((now - date) / WEEK_MS);
         label = `Week ${Math.max(1, 5 - weekIndex)}`;
       } else {
         label = date.toLocaleDateString("en-US", groupFormat);
       }
 
-      if (!buckets[label]) continue;
+      if (!currentBuckets[label]) continue;
 
-      // Revenue
       if (type === "revenue") {
-        buckets[label].value +=
-          r.finalCommission || r.commissionAmount || 0;
-      }
-
-      // Clicks
-      if (type === "clicks") {
-        buckets[label].value += r.clicks || 0;
+        currentBuckets[label].value += r.finalCommission || r.commissionAmount || 0;
+      } else {
+        currentBuckets[label].value += r.clicks || 0;
       }
     }
 
-    const chartData = Object.values(buckets);
+    const chartData = Object.values(currentBuckets);
 
-    // Encrypt & send
-    const safePayload = clean({ chartData });
+    // --- Compute currentSum (sum of chartData) ---
+    const currentSum = chartData.reduce((acc, b) => acc + (b.value || 0), 0);
+
+    // --- Compute previous window sum (prevStart → startDate - 1ms) ---
+    const prevStart = new Date(startDate.getTime() - windowSize * unitMs);
+    const prevEnd = new Date(startDate.getTime() - 1);
+
+    let prevRaw = [];
+
+    if (type === "revenue") {
+      prevRaw = await Commissions.find({
+        userId,
+        adminId,
+        createdAt: { $gte: prevStart, $lte: prevEnd },
+      }).lean();
+    } else {
+      prevRaw = await DailyAction.find({
+        userId,
+        adminId,
+        createdAt: { $gte: prevStart, $lte: prevEnd },
+      }).lean();
+    }
+
+    const previousSum = prevRaw.reduce((acc, r) => {
+      if (type === "revenue") {
+        return acc + (r.finalCommission || r.commissionAmount || 0);
+      } else {
+        return acc + (r.clicks || 0);
+      }
+    }, 0);
+
+    // percentage change — exact calculation, if previousSum is 0 we return 0 (no arbitrary 100)
+    let percentageChange = 0;
+    if (previousSum > 0) {
+      percentageChange = ((currentSum - previousSum) / previousSum) * 100;
+    } else {
+      percentageChange = 0;
+    }
+
+    const summary = {
+      period,
+      type,
+      currentSum,
+      previousSum,
+      percentageChange, // raw number (can be positive/negative)
+    };
+
+    const safePayload = clean({
+      summary,
+      chartData,
+    });
+
     const encrypted = encryptData(safePayload);
 
     res.status(200).json({
@@ -616,6 +664,167 @@ export const getUserChartDataController = async (req, res) => {
     });
   }
 };
+// export const getUserChartDataController = async (req, res) => {
+//   try {
+//     const userId = req.user._id;
+//     const adminId = req.user.workingOn;
+
+//     const { type = "revenue", period = "monthly" } = req.query;
+
+//     if (!adminId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "User does not have a working admin assigned.",
+//       });
+//     }
+
+//     const now = new Date();
+//     let startDate, groupFormat;
+    
+
+//     // ⏳ Time grouping logic
+//     switch (period) {
+//       case "daily":
+//         startDate = new Date(now);
+//         startDate.setDate(now.getDate() - 6);
+//         groupFormat = { day: "2-digit", month: "short" };
+//         break;
+
+//       case "weekly":
+//         startDate = new Date(now);
+//         startDate.setDate(now.getDate() - 30);
+//         groupFormat = { day: "2-digit", month: "short" };
+//         break;
+
+//       case "monthly":
+//         startDate = new Date(now.getFullYear(), 0, 1);
+//         groupFormat = { month: "short" };
+//         break;
+
+//       case "yearly":
+//         startDate = new Date(now.getFullYear() - 4, 0, 1);
+//         groupFormat = { year: "numeric" };
+//         break;
+
+//       default:
+//         startDate = new Date(now.getFullYear(), 0, 1);
+//         groupFormat = { month: "short" };
+//     }
+
+//     // ---------------------------------------
+//     // 🪙 TYPE: REVENUE  → Commissions Model
+//     // ---------------------------------------
+//     let rawData = [];
+
+//     if (type === "revenue") {
+//       rawData = await Commissions.find({
+//         userId,
+//         adminId,
+//         createdAt: { $gte: startDate, $lte: now },
+//       }).lean();
+//     }
+
+//     // ---------------------------------------
+//     // 🖱 TYPE: CLICKS → DailyActions Model
+//     // ---------------------------------------
+//     if (type === "clicks") {
+//       rawData = await DailyAction.find({
+//         userId,
+//         adminId,
+//         createdAt: { $gte: startDate, $lte: now },
+//       }).lean();
+//     }
+
+//     // ---------------------------------------
+//     // 🧩 Build Empty Buckets First
+//     // ---------------------------------------
+//     const buckets = {};
+
+//     if (period === "daily") {
+//       for (let i = 6; i >= 0; i--) {
+//         const d = new Date(now);
+//         d.setDate(now.getDate() - i);
+//         const label = d.toLocaleDateString("en-US", groupFormat);
+//         buckets[label] = { label, value: 0 };
+//       }
+//     }
+
+//     if (period === "weekly") {
+//       for (let i = 4; i >= 0; i--) {
+//         const label = `Week ${5 - i}`;
+//         buckets[label] = { label, value: 0 };
+//       }
+//     }
+
+//     if (period === "monthly") {
+//       for (let m = 0; m < 12; m++) {
+//         const label = new Date(now.getFullYear(), m).toLocaleString("en-US", {
+//           month: "short",
+//         });
+//         buckets[label] = { label, value: 0 };
+//       }
+//     }
+
+//     if (period === "yearly") {
+//       for (let y = now.getFullYear() - 4; y <= now.getFullYear(); y++) {
+//         buckets[y.toString()] = { label: y.toString(), value: 0 };
+//       }
+//     }
+
+//     // ---------------------------------------
+//     // 🔄 Fill Buckets with Real Values
+//     // ---------------------------------------
+//     for (const r of rawData) {
+//       const date = new Date(r.createdAt || r.date);
+
+//       let label;
+
+//       if (period === "yearly") {
+//         label = date.getFullYear().toString();
+//       } else if (period === "monthly") {
+//         label = date.toLocaleString("en-US", { month: "short" });
+//       } else if (period === "weekly") {
+//         const weekIndex = Math.floor(
+//           (now - date) / (7 * 24 * 60 * 60 * 1000)
+//         );
+//         label = `Week ${Math.max(1, 5 - weekIndex)}`;
+//       } else {
+//         label = date.toLocaleDateString("en-US", groupFormat);
+//       }
+
+//       if (!buckets[label]) continue;
+
+//       // Revenue
+//       if (type === "revenue") {
+//         buckets[label].value +=
+//           r.finalCommission || r.commissionAmount || 0;
+//       }
+
+//       // Clicks
+//       if (type === "clicks") {
+//         buckets[label].value += r.clicks || 0;
+//       }
+//     }
+
+//     const chartData = Object.values(buckets);
+
+//     // Encrypt & send
+//     const safePayload = clean({ chartData });
+//     const encrypted = encryptData(safePayload);
+
+//     res.status(200).json({
+//       success: true,
+//       data: encrypted,
+//     });
+//   } catch (error) {
+//     console.error("User chart error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Server error fetching user chart data",
+//     });
+//   }
+// };
+// ========================================
 
 // export const getEarningChartDataController = async (req, res) => {
 //     try {
