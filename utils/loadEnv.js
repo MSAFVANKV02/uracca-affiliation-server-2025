@@ -15,7 +15,7 @@ const requiredEnvKeys = [
   "MONGODB_URL",
   "PORT",
   "NODE_ENV",
-  "JWT_SECRET",
+  "JWT_SECRET_USER",
   "JWT_SECRET_ADMIN",
   "SESSION_SECRET",
   "DATA_SECRET_KEY",

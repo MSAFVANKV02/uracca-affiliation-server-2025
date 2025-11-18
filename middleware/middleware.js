@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import AffUser from "../models/aff-user.js";
 import { UserTypeEnum } from "../models/enum.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
+const JWT_SECRET_USER = process.env.JWT_SECRET_USER;
 const JWT_SECRET_ADMIN = process.env.JWT_SECRET_ADMIN 
 
 export const authenticateUser = async (req, res, next) => {
@@ -19,7 +19,7 @@ export const authenticateUser = async (req, res, next) => {
     let decoded;
     try {
         
-      decoded = jwt.verify(token, JWT_SECRET);
+      decoded = jwt.verify(token, JWT_SECRET_USER);
     //   console.log(token, "token from authenticateUser middleware");
     // console.log(decoded, "token from authenticateUser middleware");
     } catch (err) {
