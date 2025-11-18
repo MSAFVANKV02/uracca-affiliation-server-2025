@@ -25,6 +25,8 @@ import affiliateRouter from "./routes/affiliate-route.js";
 import walletRouter from "./routes/wallet-route.js";
 import bulkRouter from "./routes/bulk-route.js";
 import CommissionRouter from "./routes/commission-route.js";
+import NpmRouter from "./routes/npm-route/route.js";
+
 
 // import { createLimiter } from "./middleware/rateLimit.js";
 import { rateLimitConfig } from "./config/rateLimitConfig.js";
@@ -156,7 +158,7 @@ app.use("/api/users/bulk-details", bulkRouter);
 app.use("/api/affiliate", affiliateRouter);
 app.use("/api/wallet", walletRouter);
 app.use("/api/user/withdrawal", withdrawalRouter);
-
+app.use("/api/npm", NpmRouter);
 // ------- webhook apis ----------- ////
 
 app.use("/api/web-hook", WebHookRouter);

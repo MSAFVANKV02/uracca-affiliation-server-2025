@@ -1,0 +1,20 @@
+node_modules
+.env
+*.log
+src/tests
+uploads
+dist
+example
+# npm version patch
+# npm version minor
+# npm version major
+# npm publish --access public
+# =============
+# If you want package URL like:
+# @haash/affiliate
+# use
+# npm init --scope=@haash
+# Then publish:
+# npm publish --access public
+
+# =============

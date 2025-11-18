@@ -10,8 +10,6 @@ router.get("/:userId/:adminId",authenticateUser,getUserAdminWallet)
 router.patch("/recharge/:userId/:adminId",authenticateUser,rechargeUserWallet)
 
 
-router.patch("/cancel-amount/:orderId",cancelWalletCommissionAmountFromAff)
-
 
 
 export default router;

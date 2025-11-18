@@ -1,0 +1,21 @@
+{
+  "name": "@haash/affiliate",
+  "version": "1.0.0",
+  "description": "Affiliate integration SDK for Haash Affiliate Platform",
+  "keywords": [
+    "affiliate",
+    "commission",
+    "haash"
+  ],
+  "license": "ISC",
+  "author": "Haash India Exports Pvt Ltd",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "axios": "^1.13.2"
+  },
+  "devDependencies": {}
+}
