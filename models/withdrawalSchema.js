@@ -30,7 +30,7 @@ const WithdrawalSchema = new mongoose.Schema(
     balanceAfter: { type: Number, required: true },
     status: {
       type: String,
-      enum: ["PENDING", "PROCESSING", "COMPLETED", "CANCELLED", "FAILED","REJECTED"],
+      enum: ["PENDING", "PROCESSING", "COMPLETED", "CANCELLED", "FAILED","REJECTED","REVERSED"],
       default: "PENDING",
     },
     rejectReason: { type: String },

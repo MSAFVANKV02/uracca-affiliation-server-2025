@@ -226,8 +226,6 @@ export const loginAdmin = async (req, res) => {
   }
 };
 
-
-
 export const loginUser = async (req, res, next) => {
   try {
     const { mobile, password } = req.body;
@@ -237,8 +235,7 @@ export const loginUser = async (req, res, next) => {
     const user = await AffUser.findOne({ mobile });
     if (!user) {
       // return res.status(404).json({ success: false, message: "User not found" });
-      throw new NotFoundError("User not found")
-
+      throw new NotFoundError("User not found");
     }
 
     if (user.status === "BLOCKED") {
@@ -250,7 +247,7 @@ export const loginUser = async (req, res, next) => {
     // Compare passwords
     const isPassMatch = await bcrypt.compare(password, user.password);
     if (!isPassMatch) {
-      throw new UnauthorizedError("Invalid credentials")
+      throw new UnauthorizedError("Invalid credentials");
       // return res
       //   .status(401)
       //   .json({ success: false, message: "Invalid credentials" });
@@ -269,15 +266,21 @@ export const loginUser = async (req, res, next) => {
       { expiresIn: "7d" }
     );
 
+    // res.cookie("aff_ses_server", token, {
+    //   // domain:process.env.NODE_ENV !== "development" &&".uracca",
+    //   // httpOnly: process.env.NODE_ENV !== "development",
+    //   // secure: process.env.NODE_ENV === "production",
+    //   // maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    //   secure: req.headers.origin?.startsWith("https://"),
+    //   domain: cookieDomain,
+    //   sameSite: "Strict",
+    //   maxAge: 30 * 24 * 60 * 60 * 1000,
+    // });
     res.cookie("aff_ses_server", token, {
-      // domain:process.env.NODE_ENV !== "development" &&".uracca",
-      // httpOnly: process.env.NODE_ENV !== "development",
-      // secure: process.env.NODE_ENV === "production",
-      // maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      secure: req.headers.origin?.startsWith("https://"),
-      domain: cookieDomain,
-      sameSite: "Strict",
-      maxAge: 30 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      secure: false, // important for IP
+      sameSite: "lax", // important for IP
+      path: "/",
     });
 
     // Prepare cookie options
@@ -299,7 +302,7 @@ export const loginUser = async (req, res, next) => {
       token,
     });
   } catch (error) {
-    next(error)
+    next(error);
     // console.error("Login error:", error);
     // return res.status(500).json({
     //   success: false,

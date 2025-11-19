@@ -543,12 +543,10 @@ export const processWithdrawal = async (req, res) => {
         .json({ success: false, message: "Insufficient balance" });
 
     if (wallet.pendingAmount > 0)
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "You already have a pending withdrawal",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "You already have a pending withdrawal",
+      });
 
     // 🔹 Fetch platform settings
     const platform = await Platform.findOne({ adminId });
@@ -575,13 +573,53 @@ export const processWithdrawal = async (req, res) => {
           (finalAmount * platform.onlineTransfer.transferCharge) / 100;
     }
 
-    // 🔹 Update wallet balance
+    // -----------------------------------------------------------
+    // ✅ 1. VALIDATE Razorpay before touching wallet or creating withdrawal
+    // -----------------------------------------------------------
+    let contactId;
+    let fundAccountId;
+
+    if (method === "ONLINE") {
+      try {
+        const methodKey =
+          user.transactionDetails.method === "UPI" ? "upi" : "bank";
+
+        contactId = user.razorpayAccounts?.[methodKey]?.contactId;
+        fundAccountId = user.razorpayAccounts?.[methodKey]?.fundAccountId;
+        const isUpdated = user.razorpayAccounts?.[methodKey]?.isUpdated;
+
+        // 🔥 Validate + create new fund/contact if needed
+        if (!contactId || !fundAccountId || isUpdated) {
+          const result = await createRazorpayContactAndFund(user, methodKey);
+          contactId = result.contactId;
+          fundAccountId = result.fundAccountId;
+
+          user.razorpayAccounts[methodKey] = {
+            contactId,
+            fundAccountId,
+            isUpdated: false,
+          };
+          await user.save();
+        }
+      } catch (err) {
+        return res.status(400).json({
+          success: false,
+          message: err.message || "Invalid UPI/Bank details",
+        });
+      }
+    }
+
+    // -----------------------------------------------------------
+    // ✅ 2. NOW SAFE TO UPDATE WALLET BALANCE AFTER VALIDATION PASSED
+    // -----------------------------------------------------------
     const balanceBefore = wallet.balanceAmount;
     wallet.balanceAmount -= amount;
     wallet.pendingAmount += finalAmount;
     await wallet.save();
 
+    // -----------------------------------------------------------
     // 🔹 Prepare withdrawal data
+    // -----------------------------------------------------------
     const withdrawalData = {
       user: userId,
       adminId,
@@ -595,7 +633,7 @@ export const processWithdrawal = async (req, res) => {
       tdsAmount: 0,
     };
 
-    // 🔹 Set online payment method info
+    // 🔹 Add online payment details now that validation passed
     if (method === "ONLINE") {
       withdrawalData.onlineMethod = {
         method: user.transactionDetails.method,
@@ -603,29 +641,6 @@ export const processWithdrawal = async (req, res) => {
         bank: user.transactionDetails.OnlineBank,
       };
 
-      // Detect which payment type (UPI or BANK)
-      const methodKey =
-        user.transactionDetails.method === "UPI" ? "upi" : "bank";
-      let contactId = user.razorpayAccounts?.[methodKey]?.contactId;
-      let fundAccountId = user.razorpayAccounts?.[methodKey]?.fundAccountId;
-      const isUpdated = user.razorpayAccounts?.[methodKey]?.isUpdated;
-
-      // ✅ Create new contact/fund if missing or marked updated
-      if (!contactId || !fundAccountId || isUpdated) {
-        const result = await createRazorpayContactAndFund(user, methodKey);
-        contactId = result.contactId;
-        fundAccountId = result.fundAccountId;
-
-        // ✅ Save in user schema
-        user.razorpayAccounts[methodKey] = {
-          contactId,
-          fundAccountId,
-          isUpdated: false, // reset after successful creation
-        };
-        await user.save();
-      }
-
-      // ✅ Save IDs into withdrawal record
       withdrawalData.razorpayContactId = contactId;
       withdrawalData.razorpayFundAccountId = fundAccountId;
     }
@@ -633,17 +648,18 @@ export const processWithdrawal = async (req, res) => {
     const withdrawal = await Withdrawals.create(withdrawalData);
 
     // 🔹 Add to history
-    await addHistory({
+
+    await addHistory(
       userId,
-      action: "WITHDRAWAL_REQUEST",
-      amount: finalAmount,
-      category: UserCategoryEnum.PAYOUT,
-      metadata: {
+      "WITHDRAWAL-REQUEST",
+      finalAmount,
+      UserCategoryEnum.PAYOUT,
+      {
         method,
         balanceBefore,
         balanceAfter: wallet.balanceAmount,
-      },
-    });
+      }
+    );
 
     return res.status(200).json({
       success: true,

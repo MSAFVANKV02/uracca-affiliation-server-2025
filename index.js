@@ -53,6 +53,14 @@ app.use(
     keys: ["key1", "key2"],
   })
 );
+
+/* ---------------------- RAW BODY FOR WEBHOOK FIRST ---------------------- */
+app.use(
+  "/api/web-hook/razorpay/withdrawal-payout",
+  express.raw({ type: "application/json" })
+);
+
+/* ---------------------- NORMAL PARSERS AFTER --------------------------- */
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -68,28 +76,7 @@ app.use(
 
 app.use(morgan("dev"));
 
-// const allowedOrigins = [
-//   "https://www.uracca.com",
-//   "https://www.admin.uracca.com",
-//   "http://localhost:3000",
-//   "http://localhost:3001",
-//   "http://localhost:3002",
-//   "http://localhost:3005",
-//   "http://192.168.31.146:3000",
-//   "http://localhost:5001",
-//   "https://www.admin.uracca.com",
-//   "https://admin.uracca.com",
-//   "https://affiliate.uracca.com"
-
-// ];
-
-// app.use(
-//   cors({
-//     origin: "http://localhost:3005",
-//     credentials: true,
-//   })
-// );
-
+/* ---------------------- ORIGIN GATE --------------------------- */
 const baseOrigins = [
   "https://www.uracca.com",
   "https://uracca.com",
@@ -146,24 +133,9 @@ rateLimitConfig
     app.use(item.route, limiter);
   });
 
+
+  /* ---------------------- ROUTES ---------------------------- */
 app.get("/", (req, res) => res.send("success"));
-
-// Dynamically apply rate limits for each route
-// rateLimitConfig.forEach((item) => {
-//   if (item.noLimit) {
-//     // no limit, skip applying limiter
-//     console.log("No limit applied for", item.route);
-//     return;
-//   }
-
-//   const limiter = makeLimiter(item.window, item.max);
-
-//   console.log(
-//     `Rate limit applied → ${item.route} | ${item.max} req / ${item.window}`
-//   );
-
-//   app.use(item.route, limiter);
-// });
 
 app.use("/api/user", userRouter);
 app.use("/api/admin/withdrawal", withdrawalRouter);
@@ -190,6 +162,8 @@ app.use("/api/user/withdrawal", withdrawalRouter);
 app.use("/api/web-hook", WebHookRouter);
 
 app.use(errorHandler);
+
+/* ---------------------- SERVER ---------------------------- */
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(chalk.cyan(`Server is running on port ${PORT}`));

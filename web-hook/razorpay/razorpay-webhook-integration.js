@@ -2,50 +2,41 @@ import Withdrawals from "../../models/withdrawalSchema.js";
 import crypto from "crypto";
 import { BadRequestError } from "../../utils/errors.js";
 import { validateWebhookSignature } from "razorpay/dist/utils/razorpay-utils.js";
+import { Wallet } from "../../models/walletSchema.js";
 
 const SECRET = process.env.RAZORPAY_WEBHOOK_SECRET;
 
 export const razorpayWebhook = async (req, res) => {
-  // const rawBody = JSON.stringify(req.rawBody);
+  // const rawBody = req.rawBody;
+  const rawBody = req.body;
+  // console.log(rawBody, "rawBody razorpayWebhook");
   // console.log(req, "req razorpayWebhook");
-  // console.log(req.headers, "req.header only razorpayWebhook");
-  // console.log(SECRET);
 
-  // console.log(
-  //   req.headers["x-razorpay-signature"],
-  //   "req.header razorpayWebhook"
-  // );
-  const rawBody = req.rawBody;
-  console.log(rawBody, "rawBody razorpayWebhook");
-  console.log(req, "req razorpayWebhook");
+  if (!rawBody) {
+    console.log("RAW BODY STILL MISSING!");
+    // return res.status(400).send("No raw body received");
+  }
+
   const razorpaySignature = req.headers["x-razorpay-signature"];
   const webhookSecret = SECRET;
 
+  // 🔥 MUST VERIFY USING RAW BODY STRING
   validateWebhookSignature(
-    JSON.stringify(req.rawBody),
+    rawBody.toString(),
     razorpaySignature,
     webhookSecret
   );
 
-  // const expectedSignature = crypto
-  //   .createHmac("sha256", webhookSecret)
-  //   .update(rawBody)
-  //   .digest("hex");
-  //   console.log(expectedSignature, "expectedSignature razorpayWebhook");
-
-  // if (SECRET !== razorpaySignature) {
-  //   throw new BadRequestError("Invalid webhook signature.");
-  // }
+  // const data = JSON.parse(rawBody.toString());
 
   try {
-    const event = req.body.event;
-    const payload = req.body.payload;
-    // console.log( req.headers["x-razorpay-signature"], "req.header razorpayWebhook");
+    const data = JSON.parse(rawBody.toString());
+    const event = data.event;
+    const payload = data.payload;
+    console.log(event, "event");
 
-    // console.log(req.body, "req.body razorpayWebhook");
-
-    // console.log(event, "event razorpayWebhook");
-    // console.log(payload, "payload razorpayWebhook");
+    // const event = req.body.event;
+    // const payload = req.body.payload;
 
     if (event === "payout.processed") {
       const payout = payload.payout.entity;
@@ -53,6 +44,27 @@ export const razorpayWebhook = async (req, res) => {
         { razorpayPayoutId: payout.id },
         { $set: { status: "COMPLETED" } }
       );
+      // 1. Update withdrawal record
+      const withdrawal = await Withdrawals.findOneAndUpdate(
+        { razorpayPayoutId: payout.id },
+        { $set: { status: "COMPLETED" } },
+        { new: true }
+      );
+
+      if (withdrawal) {
+        // 2. Update wallet: pending → paid
+        await Wallet.findOneAndUpdate(
+          { userId: withdrawal.user, adminId: withdrawal.adminId },
+          {
+            $inc: {
+              paidAmount: withdrawal.withdrawalAmount,
+              totalAmount: withdrawal.withdrawalAmount,
+              // pendingAmount: -withdrawal.withdrawalAmount,
+              pendingAmount: 0,
+            },
+          }
+        );
+      }
       console.log(`✅ Payout ${payout.id} marked COMPLETED`);
     }
 
@@ -66,6 +78,12 @@ export const razorpayWebhook = async (req, res) => {
     }
 
     if (event === "payout.reversed") {
+      const payout = payload.payout.entity;
+      await Withdrawals.findOneAndUpdate(
+        { razorpayPayoutId: payout.id },
+        { $set: { status: "REVERSED" } }
+      );
+      console.log(`✅ Payout ${payout.id} marked REVERSED`);
     }
 
     return res.status(200).json({ success: true });

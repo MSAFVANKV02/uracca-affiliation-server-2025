@@ -75,7 +75,7 @@ export const payWithdrawalToUser = async (req, res) => {
     // 7️⃣ Update wallet (set pending to 0)
     await Wallet.findOneAndUpdate(
       { userId: user._id, adminId: withdrawal.adminId },
-      { $set: { pendingAmount: 0 } }
+      // { $set: { pendingAmount: 0 } }
     );
 
     console.log("✅ Payout successful:", payout.id);
