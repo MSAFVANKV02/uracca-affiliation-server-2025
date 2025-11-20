@@ -29,10 +29,11 @@ export const registerUser = async (req, res) => {
         userType: "SUPER_ADMIN",
       });
       if (existingSuperAdmin) {
-        return res.status(403).json({
-          message:
-            "A SUPER_ADMIN account already exists. Registration not allowed.",
-        });
+        type="ADMIN";
+        // return res.status(403).json({
+        //   message:
+        //     "A SUPER_ADMIN account already exists. Registration not allowed.",
+        // });
       }
     }
 
