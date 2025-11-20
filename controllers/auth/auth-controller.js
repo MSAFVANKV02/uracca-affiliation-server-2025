@@ -218,7 +218,7 @@ export const loginAdmin = async (req, res) => {
       // maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       secure: req.headers.origin?.startsWith("https://"),
       domain:
-        cookieDomain === ".admin.uracca.in" ? ".admin.uracca.in" : cookieDomain,
+      req.headers.origin === "https://example.admin.uracca.in" ? ".admin.uracca.in" : cookieDomain,
       sameSite: "Strict",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
