@@ -8,6 +8,8 @@ import { RecordAction } from "../../utils/recordAction.js";
 import { CalculateTDS } from "./calculateTDS.js";
 
 export const trackAffiliateClick = async (req, res, next) => {
+  console.log("inside trackAffiliateClick");
+  
   try {
     const { referralId, campaignAccessKey } = req.body;
 
