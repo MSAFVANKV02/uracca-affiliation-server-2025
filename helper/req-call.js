@@ -27,46 +27,30 @@
 export function getCookieDomain(req) {
   const origin = req.headers.origin || "";
 
-  // Do not set cookie domain on localhost
   if (!origin || origin.includes("localhost")) {
     return undefined;
   }
 
   try {
-    const hostname = new URL(origin).hostname;
-    console.log(hostname,'hostname in getCookieDomain');
-    
+    const hostname = new URL(origin).hostname.replace(/^www\./, "");
+    const parts = hostname.split(".");
 
-    // Remove "www."
-    const cleanHost = hostname.replace(/^www\./, "");
+    // Example: example.admin.uracca.in
+    // parts = ["example","admin","uracca","in"]
 
-    const parts = cleanHost.split(".");
+    // If final TLD is 2 letters → multi-level suffix (in, co.in, org.in)
+    const last = parts[parts.length - 1];  // in
+    const secondLast = parts[parts.length - 2]; // uracca
 
-    // If domain has <= 2 parts → use it directly (example: uracca.com)
-    if (parts.length <= 2) {
-    console.log("." + cleanHost,'parts.length <= 2 in getCookieDomain');
-
-      return "." + cleanHost;
+    if (last.length === 2) {
+      // ALWAYS return the domain as: ".uracca.in"
+      return "." + secondLast + "." + last;
     }
 
-    // If TLD is 2 letters (.in, .uk, .us) → support multi-level TLDs
-    const last = parts[parts.length - 1];       // "in"
-    const secondLast = parts[parts.length - 2]; // "uracca"
-
-    const isCountryTLD = last.length === 2;
-
-    if (isCountryTLD) {
-    console.log("." + parts.slice(-3).join("."),'isCountryTLD in getCookieDomain');
-
-      // Handles .in, .co.in, .net.in, .org.in etc.
-      return "." + parts.slice(-3).join(".");
-    }
-    console.log(parts.slice(-2).join("."),'parts.slice(-2).join(".") in getCookieDomain');
-
-    // Default: last 2 parts (.com, .net)
+    // Otherwise normal TLD (.com)
     return "." + parts.slice(-2).join(".");
   } catch (err) {
-    console.log("getCookieDomain() parsing failed:", err.message);
     return process.env.COOKIE_DOMAIN || undefined;
   }
 }
+
