@@ -25,7 +25,7 @@
 //     return cookieDomain;
 //   }
 export function getCookieDomain(req) {
-  const origin = req.headers.origin || "";
+  const origin = req.headers.origin;
 
   if (!origin || origin.includes("localhost")) {
     return undefined;
@@ -35,17 +35,14 @@ export function getCookieDomain(req) {
     const hostname = new URL(origin).hostname.replace(/^www\./, "");
     const parts = hostname.split(".");
 
-    // If only 2 parts → use them directly (.uracca.in)
-    if (parts.length <= 2) {
-      return "." + hostname;
-    }
+    // last domain parts
+    const tld = parts[parts.length - 1];        // in
+    const sld = parts[parts.length - 2];        // uracca
 
-    // Remove ONLY the first subdomain
-    // example.admin.uracca.in → remove "example"
-    const cookieParts = parts.slice(1);
-
-    return "." + cookieParts.join(".");
-  } catch (err) {
+    // ALWAYS return parent domain
+    return `.${sld}.${tld}`;
+    
+  } catch {
     return process.env.COOKIE_DOMAIN || undefined;
   }
 }
