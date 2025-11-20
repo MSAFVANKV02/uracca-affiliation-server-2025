@@ -205,7 +205,8 @@ export const loginAdmin = async (req, res) => {
     const token = jwt.sign(payload, JWT_SECRET_ADMIN, { expiresIn: "7d" });
     const cookieDomain = getCookieDomain(req);
 
-    // console.log(req.headers.origin, "req.headers.origin login--------");
+    console.log(req.headers.origin, "req.headers.origin login--------");
+    console.log(cookieDomain, "cookieDomain login--------");
 
     // Set cookie
     res.cookie("aff-admin-tkn", token, {
