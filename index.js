@@ -96,6 +96,7 @@ const extraOrigins = process.env.ALLOWED_ORIGINS
 // Merge base + extra (no duplicates)
 const allowedOrigins = Array.from(new Set([...baseOrigins, ...extraOrigins]));
 // console.log(allowedOrigins,'allowedOrigins');
+console.log("Allowed origins:", allowedOrigins);
 
 app.use(
   cors({
