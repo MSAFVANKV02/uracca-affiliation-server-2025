@@ -38,7 +38,9 @@ export const registerUser = async (req, res) => {
       // }
       if (existingSuperAdmin) {
         if (type === "SUPER_ADMIN") {
-          console.log("⚠ SUPER_ADMIN already exists → updating this user to ADMIN");
+          console.log(
+            "⚠ SUPER_ADMIN already exists → updating this user to ADMIN"
+          );
         }
         userType = "ADMIN"; // force admin
       } else {
@@ -215,7 +217,8 @@ export const loginAdmin = async (req, res) => {
       // secure: process.env.NODE_ENV === "production",
       // maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       secure: req.headers.origin?.startsWith("https://"),
-      domain: cookieDomain,
+      domain:
+        cookieDomain === ".admin.uracca.in" ? ".admin.uracca.in" : cookieDomain,
       sameSite: "Strict",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
