@@ -9,19 +9,21 @@ import { CalculateTDS } from "./calculateTDS.js";
 
 export const trackAffiliateClick = async (req, res, next) => {
   console.log("inside trackAffiliateClick");
-  
+
   try {
     const { referralId, campaignAccessKey } = req.body;
 
     // --- 1️⃣ Validate input ---
     if (!referralId || !campaignAccessKey) {
-      return res.status(400).json({ message: "Missing affiliate parameters" });
+      // return res.status(400).json({ message: "Missing affiliate parameters" });
+      throw new Error("Missing affiliate parameters");
     }
 
     // --- 2️⃣ Find the affiliate user ---
     const user = await AffUser.findOne({ referralId });
     if (!user) {
-      return res.status(404).json({ message: "Affiliate user not found" });
+      // return res.status(404).json({ message: "Affiliate user not found" });
+      throw new Error("Affiliate user not found");
     }
 
     // --- 3️⃣ Check if campaignAccessKey exists in user's schema ---
@@ -30,9 +32,10 @@ export const trackAffiliateClick = async (req, res, next) => {
       user.campaignAccessKey.includes(campaignAccessKey);
 
     if (!hasAccessKey) {
-      return res
-        .status(403)
-        .json({ message: "This campaign key does not belong to the user" });
+      // return res
+      //   .status(403)
+      //   .json({ message: "This campaign key does not belong to the user" });
+      throw new Error("This campaign key does not belong to the user");
     }
 
     // --- 4️⃣ Find the campaign ---
@@ -53,7 +56,7 @@ export const trackAffiliateClick = async (req, res, next) => {
     user.actions.totalClicks = (user.actions.totalClicks || 0) + 1;
     await user.save();
 
-   // --- 7️⃣ Add click to DailyAction Schema ---
+    // --- 7️⃣ Add click to DailyAction Schema ---
     await RecordAction(user._id, { clicks: 1 });
 
     // --- 8️⃣ Response ---
@@ -64,9 +67,9 @@ export const trackAffiliateClick = async (req, res, next) => {
       totalUserClicks: user.actions.totalClicks,
     });
   } catch (error) {
-    console.error("Affiliate tracking error:", error);
+    // console.error("Affiliate tracking error:", error);
     // return res.status(500).json({ message: "Internal server error" });
-    next(error)
+    next(error);
   }
 };
 
@@ -75,13 +78,22 @@ export const trackAffiliateClick = async (req, res, next) => {
 
 // ==================== purchaseOrderWithAffiliateCampaign ====================
 
-
 export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
   try {
-    const { referralId, campaignAccessKey, productDetails = [], orderId } = req.body;
+    const {
+      referralId,
+      campaignAccessKey,
+      productDetails = [],
+      orderId,
+    } = req.body;
 
     // 1️⃣ Basic validation
-    if (!referralId || !campaignAccessKey || !orderId || !productDetails.length) {
+    if (
+      !referralId ||
+      !campaignAccessKey ||
+      !orderId ||
+      !productDetails.length
+    ) {
       return res.status(400).json({
         message:
           "Missing required parameters (referralId, campaignAccessKey, orderId, productDetails)",
@@ -90,29 +102,42 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
 
     // 2️⃣ Find affiliate user
     const user = await AffUser.findOne({ referralId });
-    if (!user) return res.status(404).json({ message: "Affiliate user not found" });
+    if (!user)
+      return res.status(404).json({ message: "Affiliate user not found" });
 
     // 3️⃣ Validate campaignAccessKey
     const validKey =
-      Array.isArray(user.campaignAccessKey) && user.campaignAccessKey.includes(campaignAccessKey);
-    if (!validKey) return res.status(403).json({ message: "Invalid campaign key for this user" });
+      Array.isArray(user.campaignAccessKey) &&
+      user.campaignAccessKey.includes(campaignAccessKey);
+    if (!validKey)
+      return res
+        .status(403)
+        .json({ message: "Invalid campaign key for this user" });
 
     // 4️⃣ Find campaign
-    const campaign = await Campaign.findOne({ campaignAccessKey, userId: user._id });
-    if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+    const campaign = await Campaign.findOne({
+      campaignAccessKey,
+      userId: user._id,
+    });
+    if (!campaign)
+      return res.status(404).json({ message: "Campaign not found" });
 
     // 5️⃣ Get platform info for that campaign admin
-    const platform = await Platform.findOne({ adminId: campaign.company.accountId });
-    if (!platform) return res.status(404).json({ message: "Platform not found for admin" });
+    const platform = await Platform.findOne({
+      adminId: campaign.company.accountId,
+    });
+    if (!platform)
+      return res.status(404).json({ message: "Platform not found for admin" });
 
     // ----------------------------------------------------------------
     // 🧩 Step A: Fetch and validate platform products
     // ----------------------------------------------------------------
-    const { validProducts, blockedProducts, totalValidAmount } = await getAndValidatePlatformProducts(
-      platform.backendRoutes.products,
-      productDetails,
-      platform.domain
-    );
+    const { validProducts, blockedProducts, totalValidAmount } =
+      await getAndValidatePlatformProducts(
+        platform.backendRoutes.products,
+        productDetails,
+        platform.domain
+      );
 
     if (validProducts.length === 0) {
       return res.status(400).json({
@@ -172,7 +197,9 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
     }
 
     if (commissionPercent <= 0) {
-      return res.status(400).json({ message: "No commission defined for this order" });
+      return res
+        .status(400)
+        .json({ message: "No commission defined for this order" });
     }
 
     // 🧮 Commission based on total valid product amount
@@ -180,7 +207,6 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
     // console.log(totalValidAmount,'totalValidAmount');
 
     // console.log(commissionAmount,'commissionAmount');
-    
 
     // ----------------------------------------------------------------
     // 🧩 Step D: Calculate TDS
@@ -197,13 +223,18 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
     //     : tdsBase.amount || 0;
 
     // const finalCommission = commissionAmount - tdsAmount;
-     // ----------------------------------------------------------------
+    // ----------------------------------------------------------------
     // 🧩 Step D: Calculate TDS (Reusable Function)
     // ----------------------------------------------------------------
     const tdsType = user?.affType?.tdsType || "LINKED";
-    const isTdsEnabled = user?.affType?.isTdsEnabled ??false
+    const isTdsEnabled = user?.affType?.isTdsEnabled ?? false;
 
-    const { tdsAmount, finalCommission } = CalculateTDS(commissionAmount, tdsType, platform, isTdsEnabled);
+    const { tdsAmount, finalCommission } = CalculateTDS(
+      commissionAmount,
+      tdsType,
+      platform,
+      isTdsEnabled
+    );
 
     // ----------------------------------------------------------------
     // 🧩 Step E: Save commission record
@@ -269,7 +300,6 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
   }
 };
 
-
 // export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
 //   try {
 //     const { referralId, campaignAccessKey, productDetails = [], orderId, orderAmount } = req.body;
@@ -324,7 +354,6 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
 //     }
 
 //     console.log("===== validProducts",validProducts,"========");
-    
 
 //     // ----------------------------------------------------------------
 //     // 🧩 Step B: Commission eligibility logic
@@ -462,9 +491,6 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
 //   }
 // };
 
-
-
-
 // export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
 //   try {
 //     const { referralId, campaignAccessKey, productId, orderId, orderAmount } = req.body;
@@ -522,7 +548,6 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
 //     const commissionAmount = (orderAmount * commissionPercent) / 100;
 
 //     console.log(commissionAmount, "commissionAmount");
-    
 
 //     // ----------------------------------------------------------------
 //     // 🧩 Step B: Calculate TDS
@@ -545,7 +570,6 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
 
 //     const finalCommission = commissionAmount - tdsAmount;
 //     console.log(finalCommission, "finalCommission");
-
 
 //     // ----------------------------------------------------------------
 //     // 🧩 Step C: Save commission as separate document

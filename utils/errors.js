@@ -9,7 +9,7 @@ class NotFoundError extends Error {
 class MissingFieldError extends Error {
   constructor(message) {
     super(message);
-    this.name = "NotFoundError";
+    this.name = "MissingFieldError";
     this.statusCode = 400;
   }
 }
@@ -45,7 +45,13 @@ class UnauthorizedError extends Error {
     this.statusCode = 401; // 401 Unauthorized
   }
 }
-
+class InvalidError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "UnauthorizedError";
+    this.statusCode = 401; // 401 Unauthorized
+  }
+}
 class ForbiddenError extends Error {
   constructor(message) {
     super(message);
@@ -62,4 +68,5 @@ export {
   ForbiddenError,
   MissingFieldError,
   AlreadyReportedError,
+  InvalidError
 };

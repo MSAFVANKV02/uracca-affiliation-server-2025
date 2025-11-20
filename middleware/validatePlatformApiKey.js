@@ -1,5 +1,5 @@
 import { NpmPackage } from "../models/npmSchema.js";
-import { MissingFieldError } from "../utils/errors.js";
+import { InvalidError, MissingFieldError } from "../utils/errors.js";
 
 
 export const validatePlatformApiKey = async (req, res, next) => {
@@ -8,6 +8,9 @@ export const validatePlatformApiKey = async (req, res, next) => {
   try {
     const apiKey = req.headers["x-api-key"];
     const domain = req.headers["x-domain"];
+    console.log(apiKey,"apiKey");
+    console.log(domain,"domain");
+
 
     if (!apiKey || !domain){
       throw new MissingFieldError("Missing headers");
@@ -17,8 +20,12 @@ export const validatePlatformApiKey = async (req, res, next) => {
 
     const platform = await NpmPackage.findOne({ apiKey, domain });
 
-    if (!platform)
-      return res.status(401).json({ message: "Invalid domain or apiKey" });
+    if (!platform){
+      throw new InvalidError("Invalid domain or apiKey");
+      // return res.status(401).json({ message: "Missing headers" });
+      // return res.status(401).json({ message: "Invalid domain or apiKey" });
+    }
+     
 
     req.platform = platform;
     next();
