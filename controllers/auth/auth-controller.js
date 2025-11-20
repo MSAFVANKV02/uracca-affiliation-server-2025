@@ -19,6 +19,8 @@ export const registerUser = async (req, res) => {
   try {
     const { mobile, password, email, domain: domainUrl, type } = req.body;
 
+    let userType = type || "ADMIN";
+
     if (!mobile || !password || !email || !domainUrl) {
       return res.status(400).json({ message: "All fields are required" });
     }
@@ -28,12 +30,22 @@ export const registerUser = async (req, res) => {
       const existingSuperAdmin = await AffUser.findOne({
         userType: "SUPER_ADMIN",
       });
+      // if (existingSuperAdmin) {
+      //   // return res.status(403).json({
+      //   //   message:
+      //   //     "A SUPER_ADMIN account already exists. Registration not allowed.",
+      //   // });
+      // }
       if (existingSuperAdmin) {
-        type="ADMIN";
-        // return res.status(403).json({
-        //   message:
-        //     "A SUPER_ADMIN account already exists. Registration not allowed.",
-        // });
+        if (type === "SUPER_ADMIN") {
+          console.log("⚠ SUPER_ADMIN already exists → updating this user to ADMIN");
+        }
+        userType = "ADMIN"; // force admin
+      } else {
+        // No super admin exists yet → allow the first one to be SUPER_ADMIN
+        if (type !== "SUPER_ADMIN") {
+          userType = "ADMIN";
+        }
       }
     }
 
@@ -120,7 +132,7 @@ export const registerUser = async (req, res) => {
       mobile,
       email,
       password: hashedPassword,
-      userType: type || "ADMIN",
+      userType: userType,
       status: type === "SUPER_ADMIN" ? "APPROVED" : "PENDING",
       userName: domainName,
       domain: newDomain._id, // assign ObjectId
