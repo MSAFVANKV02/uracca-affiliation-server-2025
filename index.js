@@ -84,6 +84,8 @@ const baseOrigins = [
   "https://uracca.com",
   "https://www.admin.uracca.com",
   "https://affiliate.uracca.com",
+  "https://example.admin.uracca.in",
+  "https://example.uracca.in"
 ];
 
 // Parse env origins (if any)
@@ -100,8 +102,8 @@ const allowedOrigins = Array.from(new Set([...baseOrigins, ...extraOrigins]));
 app.use(
   cors({
     origin: (origin, callback) => {
-      console.log("Allowed origins:", allowedOrigins);
-      console.log("🔥 Incoming CORS request from:", origin);
+      // console.log("Allowed origins:", allowedOrigins);
+      // console.log("🔥 Incoming CORS request from:", origin);
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
