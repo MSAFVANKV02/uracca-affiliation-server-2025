@@ -34,6 +34,8 @@ export function getCookieDomain(req) {
 
   try {
     const hostname = new URL(origin).hostname;
+    console.log(hostname,'hostname in getCookieDomain');
+    
 
     // Remove "www."
     const cleanHost = hostname.replace(/^www\./, "");
@@ -55,6 +57,7 @@ export function getCookieDomain(req) {
       // Handles .in, .co.in, .net.in, .org.in etc.
       return "." + parts.slice(-3).join(".");
     }
+    console.log(parts.slice(-2).join("."),'parts.slice(-2).join(".") in getCookieDomain');
 
     // Default: last 2 parts (.com, .net)
     return "." + parts.slice(-2).join(".");
