@@ -27,28 +27,23 @@
 export function getCookieDomain(req) {
   const origin = req.headers.origin || "";
 
+  // Don't set cookie on localhost
   if (!origin || origin.includes("localhost")) {
     return undefined;
   }
 
   try {
     const hostname = new URL(origin).hostname.replace(/^www\./, "");
-    const parts = hostname.split(".");
 
-    // Example: example.admin.uracca.in
-    // parts = ["example","admin","uracca","in"]
-
-    // If final TLD is 2 letters → multi-level suffix (in, co.in, org.in)
-    const last = parts[parts.length - 1];  // in
-    const secondLast = parts[parts.length - 2]; // uracca
-
-    if (last.length === 2) {
-      // ALWAYS return the domain as: ".uracca.in"
-      return "." + secondLast + "." + last;
+    const parts = hostname.split("."); 
+    if (parts.length < 2) {
+      return undefined;
     }
 
-    // Otherwise normal TLD (.com)
-    return "." + parts.slice(-2).join(".");
+    // Always return last 2 parts
+    const cookieDomain = "." + parts.slice(-2).join(".");
+    return cookieDomain;
+
   } catch (err) {
     return process.env.COOKIE_DOMAIN || undefined;
   }
