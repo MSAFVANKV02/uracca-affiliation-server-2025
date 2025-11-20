@@ -7,7 +7,7 @@ import { getAndValidatePlatformProducts } from "../../utils/platformProductUtils
 import { RecordAction } from "../../utils/recordAction.js";
 import { CalculateTDS } from "./calculateTDS.js";
 
-export const trackAffiliateClick = async (req, res) => {
+export const trackAffiliateClick = async (req, res, next) => {
   try {
     const { referralId, campaignAccessKey } = req.body;
 
@@ -63,7 +63,8 @@ export const trackAffiliateClick = async (req, res) => {
     });
   } catch (error) {
     console.error("Affiliate tracking error:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    // return res.status(500).json({ message: "Internal server error" });
+    next(error)
   }
 };
 
