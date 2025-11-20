@@ -209,6 +209,8 @@ export const loginAdmin = async (req, res) => {
 
     console.log(req.headers.origin, "req.headers.origin login--------");
     console.log(cookieDomain, "cookieDomain login--------");
+    console.log(token,'token');
+    
 
     // Set cookie
     res.cookie("aff-admin-tkn", token, {
