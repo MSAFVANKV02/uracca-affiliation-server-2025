@@ -27,23 +27,24 @@
 export function getCookieDomain(req) {
   const origin = req.headers.origin || "";
 
-  // Don't set cookie on localhost
   if (!origin || origin.includes("localhost")) {
     return undefined;
   }
 
   try {
     const hostname = new URL(origin).hostname.replace(/^www\./, "");
+    const parts = hostname.split(".");
 
-    const parts = hostname.split("."); 
-    if (parts.length < 2) {
-      return undefined;
+    // If only 2 parts → use them directly (.uracca.in)
+    if (parts.length <= 2) {
+      return "." + hostname;
     }
 
-    // Always return last 2 parts
-    const cookieDomain = "." + parts.slice(-2).join(".");
-    return cookieDomain;
+    // Remove ONLY the first subdomain
+    // example.admin.uracca.in → remove "example"
+    const cookieParts = parts.slice(1);
 
+    return "." + cookieParts.join(".");
   } catch (err) {
     return process.env.COOKIE_DOMAIN || undefined;
   }
