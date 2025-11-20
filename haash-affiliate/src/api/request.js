@@ -7,6 +7,7 @@ API.interceptors.request.use((req) => {
   const cfg = getConfig();
   req.baseURL = cfg.baseURL;
   req.headers["x-api-key"] = cfg.apiKey;
+  req.headers["x-domain"] = cfg.domain;
   req.headers["Content-Type"] = "application/json";
   return req;
 });

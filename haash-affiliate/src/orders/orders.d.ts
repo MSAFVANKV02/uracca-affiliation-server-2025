@@ -1,11 +1,14 @@
 export interface OrderCampaignProps {
-    referralId: string;
-    campaignAccessKey: string;
-    orderId: string;
-    productDetails?: any[];
-  }
-  
-  export function OrderCampaign(props: OrderCampaignProps): Promise<any>;
-  
-  export function CancelCommission(orderId: string): Promise<any>;
-  
+  referralId: string;
+  campaignAccessKey: string;
+  orderId: string;
+  productDetails: OrderCampaignProducts[];
+}
+export interface OrderCampaignProducts {
+  productId: string;
+  productAmount: number;
+}
+//
+export function OrderCampaign(props: OrderCampaignProps): Promise<any>;
+
+export function CancelCommission(orderId: string): Promise<any>;
