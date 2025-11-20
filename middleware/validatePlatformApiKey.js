@@ -3,15 +3,16 @@ import { NpmPackage } from "../models/npmSchema.js";
 
 export const validatePlatformApiKey = async (req, res, next) => {
   try {
-    const key = req.headers["x-api-key"];
+    const apiKey = req.headers["x-api-key"];
+    const domain = req.headers["x-domain"];
 
-    if (!key)
-      return res.status(401).json({ message: "API key missing in header" });
+    if (!apiKey || !domain)
+      return res.status(401).json({ message: "Missing headers" });
 
-    const platform = await NpmPackage.findOne({ apiKey: key });
+    const platform = await NpmPackage.findOne({ apiKey, domain });
 
     if (!platform)
-      return res.status(401).json({ message: "Invalid API key" });
+      return res.status(401).json({ message: "Invalid domain or apiKey" });
 
     req.platform = platform;
     next();

@@ -1,9 +1,15 @@
+import { API } from "../api/request.js";
 
-import { API } from "../request.js";
-
-
-export const OrderCampaign = async ({ referralId, campaignAccessKey, productDetails = [], orderId }) => {
+export const OrderCampaign = async ({
+  referralId,
+  campaignAccessKey,
+  productDetails = [],
+  orderId
+}) => {
   return API.post("/affiliate/purchase-campaign", {
-   referralId, campaignAccessKey, productDetails , orderId
+    referralId,
+    campaignAccessKey,
+    productDetails,
+    orderId,
   });
 };

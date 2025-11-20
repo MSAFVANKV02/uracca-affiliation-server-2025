@@ -18,3 +18,34 @@ example
 # npm publish --access public
 
 # =============
+# {
+#   "name": "@haash/affiliate",
+#   "version": "1.0.3",
+#   "description": "Affiliate integration SDK for Haash Affiliate Platform",
+#   "keywords": [
+#     "affiliate",
+#     "commission",
+#     "haash"
+#   ],
+#   "license": "ISC",
+#   "types": "src/types/index.d.ts",
+#   "files": [
+#     "src",
+#     "types"
+#   ],
+#   "files": [
+#     "dist"
+#   ],
+#   "author": "Haash India Exports Pvt Ltd",
+#   "type": "module",
+#   "main": "src/index.js",
+#   "scripts": {
+#     "test": "echo \"Error: no test specified\" && exit 1"
+#   },
+#   "dependencies": {
+#     "axios": "^1.13.2"
+#   },
+#   "devDependencies": {
+#     "esbuild": "^0.27.0"
+#   }
+# }

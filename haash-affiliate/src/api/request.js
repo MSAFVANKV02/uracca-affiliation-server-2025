@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getConfig } from "./config.js";
+import { getConfig } from "../config/config.js";
 
 export const API = axios.create();
 

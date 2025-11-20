@@ -2,6 +2,7 @@ import AffUser from "../../models/aff-user.js";
 import { Campaign } from "../../models/campaignSchema.js";
 import { encryptData } from "../../utils/cript-data.js";
 import generateUniqueCampaignAccessKey from "../../utils/generate-keys.js";
+import {InitAffiliate,TrackClick} from "@haash/affiliate"
 
 export const createCampaign = async (req, res) => {
   try {

@@ -16,6 +16,7 @@ const platformSchema = new mongoose.Schema(
     // clientId: { type: mongoose.Schema.Types.ObjectId, ref: "Client", required: true },
     domain: { type: String,  },
     adminId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    accessKey: { type: mongoose.Schema.Types.ObjectId, ref: "NpmPackage" },
     adminType: {
       type: String,
       enum: Object.values(UserTypeEnum),
