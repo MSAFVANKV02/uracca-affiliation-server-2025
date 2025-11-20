@@ -100,9 +100,11 @@ const allowedOrigins = Array.from(new Set([...baseOrigins, ...extraOrigins]));
 app.use(
   cors({
     origin: (origin, callback) => {
+      console.log("🔥 Incoming CORS request from:", origin);
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.log("❌ Blocked Origin:", origin);
         callback(new Error("Not allowed by CORS"));
       }
     },
