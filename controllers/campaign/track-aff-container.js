@@ -78,7 +78,7 @@ export const trackAffiliateClick = async (req, res, next) => {
 
 // ==================== purchaseOrderWithAffiliateCampaign ====================
 
-export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
+export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
   console.log("inside purchaseOrderWithAffiliateCampaign");
   try {
     const {
@@ -96,10 +96,13 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
       !orderId ||
       !productDetails.length
     ) {
-      return res.status(400).json({
-        message:
-          "Missing required parameters (referralId, campaignAccessKey, orderId, productDetails)",
-      });
+      // return res.status(400).json({
+      //   message:
+      //     "Missing required parameters (referralId, campaignAccessKey, orderId, productDetails)",
+      // });
+      throw new Error(
+        "Missing required parameters (referralId, campaignAccessKey, orderId, productDetails)"
+      );
     }
 
     // 2️⃣ Find affiliate user
@@ -121,15 +124,20 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
       campaignAccessKey,
       userId: user._id,
     });
-    if (!campaign)
-      return res.status(404).json({ message: "Campaign not found" });
+    if (!campaign){
+      //  return res.status(404).json({ message: "Campaign not found" });
+        throw new Error( "Campaign not found");
+    }
+     
 
     // 5️⃣ Get platform info for that campaign admin
     const platform = await Platform.findOne({
       adminId: campaign.company.accountId,
     });
-    if (!platform)
-      return res.status(404).json({ message: "Platform not found for admin" });
+    if (!platform){
+      // return res.status(404).json({ message: "Platform not found for admin" });
+      throw new Error( "Platform not found for admin");
+    }
 
     // ----------------------------------------------------------------
     // 🧩 Step A: Fetch and validate platform products
@@ -142,10 +150,13 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
       );
 
     if (validProducts.length === 0) {
-      return res.status(400).json({
-        message: "No valid active products found for this order",
-        blockedProducts,
-      });
+      // return res.status(400).json({
+      //   message: "No valid active products found for this order",
+      //   blockedProducts,
+      // });
+      throw new Error(
+        "No valid active products found for this order"
+      );
     }
 
     // ----------------------------------------------------------------
@@ -159,9 +170,12 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
         (p) => p.productId?.toString() === campaignProductId
       );
       if (!matched) {
-        return res.status(400).json({
-          message: "This product is not part of the current campaign",
-        });
+        // return res.status(400).json({
+        //   message: "This product is not part of the current campaign",
+        // });
+        throw new Error(
+          "This product is not part of the current campaign"
+        );
       }
       eligibleCount = 1;
     } else if (user?.affType?.commissionType === "ALL_PRODUCT") {
@@ -169,9 +183,12 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
         (p) => p.productId?.toString() === campaignProductId
       );
       if (!matched) {
-        return res.status(400).json({
-          message: "No matching campaign product found among purchased items",
-        });
+        // return res.status(400).json({
+        //   message: "No matching campaign product found among purchased items",
+        // });
+        throw new Error(
+          "No matching campaign product found among purchased items"
+        );
       }
       eligibleCount = validProducts.length;
     } else {
@@ -199,9 +216,10 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
     }
 
     if (commissionPercent <= 0) {
-      return res
-        .status(400)
-        .json({ message: "No commission defined for this order" });
+      // return res
+      //   .status(400)
+      //   .json({ message: "No commission defined for this order" });
+      throw new Error("No commission defined for this order");
     }
 
     // 🧮 Commission based on total valid product amount
@@ -295,10 +313,11 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error in purchaseOrderWithAffiliateCampaign:", error);
-    return res.status(500).json({
-      message: "Internal Server Error",
-      error: error.message,
-    });
+    next(error);
+    // return res.status(500).json({
+    //   message: "Internal Server Error",
+    //   error: error.message,
+    // });
   }
 };
 
