@@ -44,6 +44,8 @@ export function getCookieDomain(req) {
 
     // If domain has <= 2 parts → use it directly (example: uracca.com)
     if (parts.length <= 2) {
+    console.log("." + cleanHost,'parts.length <= 2 in getCookieDomain');
+
       return "." + cleanHost;
     }
 
@@ -54,6 +56,8 @@ export function getCookieDomain(req) {
     const isCountryTLD = last.length === 2;
 
     if (isCountryTLD) {
+    console.log("." + parts.slice(-3).join("."),'isCountryTLD in getCookieDomain');
+
       // Handles .in, .co.in, .net.in, .org.in etc.
       return "." + parts.slice(-3).join(".");
     }
