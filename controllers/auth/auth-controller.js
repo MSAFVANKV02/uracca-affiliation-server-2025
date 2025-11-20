@@ -38,9 +38,7 @@ export const registerUser = async (req, res) => {
       // }
       if (existingSuperAdmin) {
         if (type === "SUPER_ADMIN") {
-          console.log(
-            "⚠ SUPER_ADMIN already exists → updating this user to ADMIN"
-          );
+          console.log("⚠ SUPER_ADMIN already exists → updating this user to ADMIN");
         }
         userType = "ADMIN"; // force admin
       } else {
@@ -207,10 +205,7 @@ export const loginAdmin = async (req, res) => {
     const token = jwt.sign(payload, JWT_SECRET_ADMIN, { expiresIn: "7d" });
     const cookieDomain = getCookieDomain(req);
 
-    console.log(req.headers.origin, "req.headers.origin login--------");
-    console.log(cookieDomain, "cookieDomain login--------");
-    console.log(token,'token');
-    
+    // console.log(req.headers.origin, "req.headers.origin login--------");
 
     // Set cookie
     res.cookie("aff-admin-tkn", token, {
@@ -219,7 +214,7 @@ export const loginAdmin = async (req, res) => {
       // secure: process.env.NODE_ENV === "production",
       // maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       secure: req.headers.origin?.startsWith("https://"),
-      domain:".uracca.com",
+      domain: cookieDomain,
       sameSite: "Strict",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
