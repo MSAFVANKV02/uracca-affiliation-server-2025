@@ -219,7 +219,7 @@ export const loginAdmin = async (req, res) => {
       // secure: process.env.NODE_ENV === "production",
       // maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       secure: req.headers.origin?.startsWith("https://"),
-      domain:".admin.uracca.in",
+      domain:".uracca.com",
       sameSite: "Strict",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
