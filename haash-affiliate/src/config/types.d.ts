@@ -1,7 +1,7 @@
 export interface InitAffiliateProps {
     // baseURL: string;
-    apiKey: string;
-    domain: string;
+    apiKey?: string;
+    domain?: string;
 
   }
   
@@ -9,8 +9,8 @@ export interface InitAffiliateProps {
   
   export interface AffiliateConfig {
     // baseURL: string;
-    apiKey: string;
-    domain: string;
+    apiKey?: string;
+    domain?: string;
 
   }
   

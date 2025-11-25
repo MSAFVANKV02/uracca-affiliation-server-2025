@@ -16,11 +16,13 @@ import DailyAction from "../../models/actionSchema.js";
 export const bulkDataController = async (req, res, next) => {
   try {
     const adminId = req.admin._id;
+    const currentAdminType = req.admin.userType === "SUPER_ADMIN" ? "SUPER_ADMIN" : "ADMIN";
 
     // 1️⃣ Get Users under this admin
     // const users = await AffUser.find({ workingOn: adminId })
     //   .select("fullName email mobile referralId status commissionDetails actions social documents");
     // 1️⃣ Get Users under this admin using collaborateWith
+    const allUsers =  await AffUser.find()
     const users = await AffUser.find({
       collaborateWith: {
         $elemMatch: { accountId: adminId },
@@ -153,9 +155,13 @@ export const bulkDataController = async (req, res, next) => {
     const totalCampaigns = campaigns.length;
     const totalUsers = currentAdmin.collaborateWith.length;
     const approvedUsers = users.filter((u) => u.status === "APPROVED").length;
-    const pendingApplications = users.filter(
-      (u) => u.status === "PENDING"
-    ).length;
+    let pendingApplications = 0;
+    if (currentAdminType === "SUPER_ADMIN") {
+      pendingApplications = allUsers.filter((u) => u.status === "PENDING").length;
+    }
+    // const pendingApplications = allUsers.filter(
+    //   (u) => u.status === "PENDING"
+    // ).length;
 
     // users.forEach(u => {
     //     console.log(

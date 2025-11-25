@@ -314,7 +314,7 @@ export const loginUser = async (req, res, next) => {
       message: "Successfully Logged In",
       token,
     });
-  } catch (error) {
+  } catch (error) {console.error("Login error:", error);
     next(error);
     // console.error("Login error:", error);
     // return res.status(500).json({

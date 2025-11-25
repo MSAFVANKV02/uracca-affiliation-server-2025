@@ -2,7 +2,7 @@ import AffUser from "../../models/aff-user.js";
 import { Campaign } from "../../models/campaignSchema.js";
 import { encryptData } from "../../utils/cript-data.js";
 import generateUniqueCampaignAccessKey from "../../utils/generate-keys.js";
-import {InitAffiliate,TrackClick} from "@haash/affiliate"
+import { InitAffiliate, TrackClick } from "@haash/affiliate";
 
 export const createCampaign = async (req, res) => {
   try {
@@ -93,39 +93,67 @@ export const createCampaign = async (req, res) => {
 };
 
 //   ==== get users campaigns ===
-export const getUserCampaigns = async (req, res) => {
+export const getUserCampaigns = async (req, res, next) => {
   try {
     const user = req.user; // ✅ authenticated user from middleware
     // console.log(user, "user getUserCampaigns");
 
     if (!user) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
+      // return res.status(401).json({ success: false, message: "Unauthorized" });
+      throw new Error("Unauthorized");
     }
 
     // Optional filter: only campaigns for a specific admin/platform
-    const { accountId } = req.query;
+    const { accountId, date, sort } = req.query;
+    console.log(req.query,'req.query');
+    
 
     const query = { userId: user._id };
     if (accountId) {
       query["company.accountId"] = accountId;
     }
 
-    const campaigns = await Campaign.find(query).sort({ createdAt: -1 }).populate("userId");
+    // Default sorting
+    let sortQuery = { createdAt: -1 }; // latest
+
+    //   sort with date
+    if (date === "newest") {
+      sortQuery = { createdAt: -1 }; // newest
+    }
+    if (date === "oldest") {
+      sortQuery = { createdAt: 1 }; // oldest
+    }
+
+    // 🔥 Commission sorting
+    if (sort === "high") {
+      sortQuery = { "commissionDetails.totalCommissionWithTds": -1 };
+    }
+    if (sort === "low") {
+      sortQuery = { "commissionDetails.totalCommissionWithTds": 1 };
+    }
+
+    const campaigns = await Campaign.find(query)
+      .sort(sortQuery)
+      .populate("userId");
+
+
     const encryptedData = encryptData(campaigns);
+
+
     res.status(200).json({
       success: true,
       message: "User campaigns fetched successfully",
       data: encryptedData,
     });
+
+
   } catch (error) {
-    console.error("Error fetching user campaigns:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch campaigns",
-      error: error.message,
-    });
+    // console.error("Error fetching user campaigns:", error);
+    // res.status(500).json({
+    //   success: false,
+    //   message: "Failed to fetch campaigns",
+    //   error: error.message,
+    // });
+    next(error);
   }
 };
-
-
- 

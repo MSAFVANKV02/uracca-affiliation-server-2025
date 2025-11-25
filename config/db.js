@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import chalk from "chalk";
+// console.log(process.env.MONGODB_UR,'process.env.MONGODB_UR');
 
 const connectDB = async () => {
   try {

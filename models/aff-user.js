@@ -199,6 +199,47 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// 🔥 AUTO-SET isUpdated when UPI or BANK details change
+userSchema.pre("save", function (next) {
+  const user = this;
+
+  if (!user.isModified("transactionDetails")) {
+    return next();
+  }
+
+  const method = user.transactionDetails.method;
+
+  // UPI changed
+  if (method === "UPI") {
+    const hasUpiChanged =
+      user.isModified("transactionDetails.upiId") ||
+      user.isModified("transactionDetails.method");
+
+    if (hasUpiChanged) {
+      user.razorpayAccounts.upi.isUpdated = true;
+    }
+  }
+
+  // BANK changed
+  if (method === "BANK") {
+    const bank = user.transactionDetails.OnlineBank;
+
+    const hasBankChanged =
+      user.isModified("transactionDetails.method") ||
+      user.isModified("transactionDetails.OnlineBank.accountHolderName") ||
+      user.isModified("transactionDetails.OnlineBank.accountNumber") ||
+      user.isModified("transactionDetails.OnlineBank.bankName") ||
+      user.isModified("transactionDetails.OnlineBank.ifscCode");
+
+    if (hasBankChanged) {
+      user.razorpayAccounts.bank.isUpdated = true;
+    }
+  }
+
+  next();
+});
+
+
 // ✅ Pre-save hook
 userSchema.pre("save", async function (next) {
   if (!this.referralId) {

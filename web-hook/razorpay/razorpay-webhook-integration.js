@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { BadRequestError } from "../../utils/errors.js";
 import { validateWebhookSignature } from "razorpay/dist/utils/razorpay-utils.js";
 import { Wallet } from "../../models/walletSchema.js";
+import { Transaction } from "../../models/transactionSchema.js";
 
 const SECRET = process.env.RAZORPAY_WEBHOOK_SECRET;
 
@@ -33,7 +34,7 @@ export const razorpayWebhook = async (req, res) => {
     const data = JSON.parse(rawBody.toString());
     const event = data.event;
     const payload = data.payload;
-    console.log(event, "event");
+    // console.log(event, "event");
 
     // const event = req.body.event;
     // const payload = req.body.payload;
@@ -53,7 +54,7 @@ export const razorpayWebhook = async (req, res) => {
 
       if (withdrawal) {
         // 2. Update wallet: pending → paid
-        await Wallet.findOneAndUpdate(
+      const wallet =  await Wallet.findOneAndUpdate(
           { userId: withdrawal.user, adminId: withdrawal.adminId },
           {
             $inc: {
@@ -64,6 +65,20 @@ export const razorpayWebhook = async (req, res) => {
             },
           }
         );
+
+        // await wallet.save();
+
+        await Transaction.create({
+          walletId: wallet._id,
+          type: "PAY",
+          refId: withdrawal._id,
+          amount: withdrawalAmount,
+          tdsAmount: withdrawal.tdsAmount || 0,
+          method:"RAZORPAY",
+          status: "PAID",
+          message: `Withdrawal of amount ₹${withdrawalAmount} completed.`,
+        })
+  
       }
       console.log(`✅ Payout ${payout.id} marked COMPLETED`);
     }

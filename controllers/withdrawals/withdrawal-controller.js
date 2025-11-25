@@ -8,6 +8,7 @@ import { addHistory } from "../../utils/history.js";
 import bcrypt from "bcryptjs";
 import { createRazorpayContactAndFund } from "../../lib/RazorpayContactAndFund.js";
 import { encryptData } from "../../utils/cript-data.js";
+import { Transaction } from "../../models/transactionSchema.js";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID ?? "rzp_test_4YU8jVusTNczuc",
@@ -212,6 +213,17 @@ export const updateAffWithdrawalStatus = async (req, res) => {
         },
         $set: { pendingAmount: 0 },
       };
+
+      await Transaction.create({
+        walletId: wallet._id,
+        type: "PAY",
+        refId: withdrawal._id,
+        amount: withdrawalAmount,
+        tdsAmount: withdrawal.tdsAmount || 0,
+        method:"BANK",
+        status: "PAID",
+        message: `Withdrawal of amount ₹${withdrawalAmount} completed.`,
+      })
 
       await addHistory(
         user._id,
@@ -500,7 +512,7 @@ export const updateAffWithdrawalStatus = async (req, res) => {
 //   }
 // };
 
-export const processWithdrawal = async (req, res) => {
+export const processWithdrawal = async (req, res, next) => {
   try {
     const adminId = req.params.adminId;
     const userId = req.user._id;
@@ -602,6 +614,8 @@ export const processWithdrawal = async (req, res) => {
           await user.save();
         }
       } catch (err) {
+        // console.log(err,'err in razorpay contact/fund creation');
+        
         return res.status(400).json({
           success: false,
           message: err.message || "Invalid UPI/Bank details",
