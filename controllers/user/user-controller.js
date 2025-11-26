@@ -1,3 +1,4 @@
+import DailyAction from "../../models/actionSchema.js";
 import AffUser from "../../models/aff-user.js";
 import { UserTypeEnum } from "../../models/enum.js";
 import { encryptData } from "../../utils/cript-data.js";
@@ -96,10 +97,48 @@ export const getAllAffUsersForEachAdmins = async (req, res) => {
     }
 
     // ✅ Fetch filtered users
-    const users = await AffUser.find(filters);
+    // const users = await AffUser.find(filters);
+    let users = await AffUser.find(filters);
+
+    // 🔥 FETCH DAILY ACTION SUMMARY FOR EACH USER
+    const usersWithSummary = await Promise.all(
+      users.map(async (user) => {
+        const summary = await DailyAction.aggregate([
+          {
+            $match: {
+              userId: user._id,
+              adminId: adminId,
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalClicks: { $sum: "$clicks" },
+              totalOrders: { $sum: "$orders" },
+              totalSales: { $sum: "$sales" },
+              totalEarnings: { $sum: "$earnings" },
+              totalPaidCommission: { $sum: "$paidCommission" },
+              totalActiveCampaigns: { $sum: "$activeCampaigns" },
+            },
+          },
+        ]);
+
+        return {
+          ...user.toObject(),
+          summary: summary[0] || {
+            totalClicks: 0,
+            totalOrders: 0,
+            totalSales: 0,
+            totalEarnings: 0,
+            totalPaidCommission: 0,
+            totalActiveCampaigns: 0,
+          },
+        };
+      })
+    );
 
     // Encrypt the data before sending
-    const encryptedData = encryptData(users);
+    const encryptedData = encryptData(usersWithSummary);
     // const safePayload = clean
 
     res.status(200).json({

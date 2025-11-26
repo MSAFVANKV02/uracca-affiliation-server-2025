@@ -4,6 +4,7 @@ import { BadRequestError } from "../../utils/errors.js";
 import { validateWebhookSignature } from "razorpay/dist/utils/razorpay-utils.js";
 import { Wallet } from "../../models/walletSchema.js";
 import { Transaction } from "../../models/transactionSchema.js";
+import { DailyActionUpdater } from "../../utils/recordAction.js";
 
 const SECRET = process.env.RAZORPAY_WEBHOOK_SECRET;
 
@@ -54,7 +55,7 @@ export const razorpayWebhook = async (req, res) => {
 
       if (withdrawal) {
         // 2. Update wallet: pending → paid
-      const wallet =  await Wallet.findOneAndUpdate(
+        const wallet = await Wallet.findOneAndUpdate(
           { userId: withdrawal.user, adminId: withdrawal.adminId },
           {
             $inc: {
@@ -66,6 +67,12 @@ export const razorpayWebhook = async (req, res) => {
           }
         );
 
+        // ============ Affiliate daily action ==============
+        await new DailyActionUpdater(wallet.userId, wallet.adminId)
+          .increment("earnings", withdrawal.withdrawalAmount)
+          .apply();
+        // ============ Affiliate daily action ==============
+
         // await wallet.save();
 
         await Transaction.create({
@@ -74,11 +81,10 @@ export const razorpayWebhook = async (req, res) => {
           refId: withdrawal._id,
           amount: withdrawalAmount,
           tdsAmount: withdrawal.tdsAmount || 0,
-          method:"RAZORPAY",
+          method: "RAZORPAY",
           status: "PAID",
           message: `Withdrawal of amount ₹${withdrawalAmount} completed.`,
-        })
-  
+        });
       }
       console.log(`✅ Payout ${payout.id} marked COMPLETED`);
     }

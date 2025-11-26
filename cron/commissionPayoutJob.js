@@ -80,7 +80,7 @@ cron.schedule("0 0 * * *", async () => {
 
         // const paidCommission = amt || 0;
 
-        await new DailyActionUpdater(user._id, withdrawal.adminId)
+        await new DailyActionUpdater(user._id, admin)
           .increment("paidCommission", amt)
           .apply();
 
@@ -168,7 +168,7 @@ cron.schedule("0 0 * * *", async () => {
 
 //     // const paidCommission = amt || 0;
 
-//     await new DailyActionUpdater(user._id, withdrawal.adminId)
+//     await new DailyActionUpdater(user._id, admin)
 //     .increment("paidCommission", amt)
 //     .apply();
 

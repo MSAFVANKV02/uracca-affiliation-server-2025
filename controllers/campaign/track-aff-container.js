@@ -199,7 +199,7 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
     // 🧩 Step C: Determine Commission %
     // ----------------------------------------------------------------
     let commissionPercent = 0;
-    console.log(commissionPercent,'commissionPercent');
+    // console.log(commissionPercent,'commissionPercent');
     
 
     if (user?.affType?.commission > 0) {
