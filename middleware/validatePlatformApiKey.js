@@ -20,6 +20,8 @@ export const validatePlatformApiKey = async (req, res, next) => {
     const origin = req.headers.origin;
     console.log(apiKey,"apiKey");
     console.log(domain,"domain");
+    console.log(origin,"origin");
+
 
     if (!apiKey || !domain ) {
       throw new MissingFieldError("Missing headers");
