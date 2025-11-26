@@ -168,6 +168,10 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
     // ----------------------------------------------------------------
     const campaignProductId = campaign.product?.productId?.toString();
     let eligibleCount = 0;
+    console.log(campaignProductId,'campaignProductId');
+    console.log(validProducts,'validProducts');
+
+    
 
     if (user?.affType?.commissionType === "ONLY_AFF_PRODUCT") {
       const matched = validProducts.some(
