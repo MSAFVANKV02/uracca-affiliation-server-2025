@@ -38,7 +38,7 @@ export const validatePlatformApiKey = async (req, res, next) => {
     const cleanDbDomain = normalizeOrigin(platform.domain);
 
     // 🔥 Bypass domain validation if local development
-    if (isLocalHost(cleanOrigin)) {
+    if (cleanOrigin &&isLocalHost(cleanOrigin)) {
       req.platform = platform;
       return next();
     }
