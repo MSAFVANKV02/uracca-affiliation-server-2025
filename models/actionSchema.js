@@ -23,7 +23,9 @@ const dailyActionSchema = new mongoose.Schema({
   clicks: { type: Number, default: 0 },
   orders: { type: Number, default: 0 },
   sales: { type: Number, default: 0 },
-
+  earnings: { type: Number, default: 0 },
+  activeCampaigns: { type: Number, default: 0 },
+  paidCommission: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

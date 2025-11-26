@@ -3,6 +3,7 @@ import { Campaign } from "../../models/campaignSchema.js";
 import { encryptData } from "../../utils/cript-data.js";
 import generateUniqueCampaignAccessKey from "../../utils/generate-keys.js";
 import { InitAffiliate, TrackClick } from "@haash/affiliate";
+import { DailyActionUpdater } from "../../utils/recordAction.js";
 
 export const createCampaign = async (req, res) => {
   try {
@@ -73,6 +74,13 @@ export const createCampaign = async (req, res) => {
       { new: true }
     );
 
+    // ============ Affiliate daily action ==============
+    await new DailyActionUpdater(user._id, user.workingOn)
+      .increment("activeCampaigns")
+      .apply();
+    // ============ Affiliate daily action ==============
+
+
     res.status(201).json({
       success: true,
       message: "Campaign created successfully",
@@ -105,8 +113,7 @@ export const getUserCampaigns = async (req, res, next) => {
 
     // Optional filter: only campaigns for a specific admin/platform
     const { accountId, date, sort } = req.query;
-    console.log(req.query,'req.query');
-    
+    console.log(req.query, "req.query");
 
     const query = { userId: user._id };
     if (accountId) {
@@ -136,17 +143,13 @@ export const getUserCampaigns = async (req, res, next) => {
       .sort(sortQuery)
       .populate("userId");
 
-
     const encryptedData = encryptData(campaigns);
-
 
     res.status(200).json({
       success: true,
       message: "User campaigns fetched successfully",
       data: encryptedData,
     });
-
-
   } catch (error) {
     // console.error("Error fetching user campaigns:", error);
     // res.status(500).json({

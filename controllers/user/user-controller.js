@@ -100,6 +100,7 @@ export const getAllAffUsersForEachAdmins = async (req, res) => {
 
     // Encrypt the data before sending
     const encryptedData = encryptData(users);
+    // const safePayload = clean
 
     res.status(200).json({
       success: true,

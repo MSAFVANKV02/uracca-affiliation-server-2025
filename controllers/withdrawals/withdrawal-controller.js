@@ -9,6 +9,8 @@ import bcrypt from "bcryptjs";
 import { createRazorpayContactAndFund } from "../../lib/RazorpayContactAndFund.js";
 import { encryptData } from "../../utils/cript-data.js";
 import { Transaction } from "../../models/transactionSchema.js";
+import DailyAction from "../../models/actionSchema.js";
+import { DailyActionUpdater } from "../../utils/recordAction.js";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID ?? "rzp_test_4YU8jVusTNczuc",
@@ -220,10 +222,34 @@ export const updateAffWithdrawalStatus = async (req, res) => {
         refId: withdrawal._id,
         amount: withdrawalAmount,
         tdsAmount: withdrawal.tdsAmount || 0,
-        method:"BANK",
+        method: "BANK",
         status: "PAID",
         message: `Withdrawal of amount ₹${withdrawalAmount} completed.`,
-      })
+      });
+
+      // -----------------------------
+      // ✅ UPDATE DAILY ACTION
+      // -----------------------------
+      // const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+      // await DailyAction.findOneAndUpdate(
+      //   {
+      //     userId: user._id,
+      //     adminId: withdrawal.adminId,
+      //     date: today,
+      //   },
+      //   {
+      //     $inc: {
+      //       earnings: withdrawalAmount,
+      //     },
+      //     $set: { updatedAt: new Date() },
+      //   },
+      //   { upsert: true, new: true }
+      // );
+      await new DailyActionUpdater(user._id, withdrawal.adminId)
+        .increment("earnings", withdrawalAmount)
+        .apply();
+        
 
       await addHistory(
         user._id,
@@ -615,7 +641,7 @@ export const processWithdrawal = async (req, res, next) => {
         }
       } catch (err) {
         // console.log(err,'err in razorpay contact/fund creation');
-        
+
         return res.status(400).json({
           success: false,
           message: err.message || "Invalid UPI/Bank details",
