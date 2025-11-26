@@ -6,6 +6,11 @@ const normalizeOrigin = (url) => {
   return url.replace(/\/$/, "").toLowerCase(); // remove ending `/`
 };
 
+// Check if origin is localhost or 127.0.0.1
+const isLocalHost = (origin) => {
+  return origin.includes("localhost") || origin.includes("127.0.0.1");
+};
+
 export const validatePlatformApiKey = async (req, res, next) => {
   console.log("inside validate Platform Api Key");
 
@@ -29,6 +34,12 @@ export const validatePlatformApiKey = async (req, res, next) => {
       // return res.status(401).json({ message: "Invalid domain or apiKey" });
     }
     const cleanDbDomain = normalizeOrigin(platform.domain);
+
+    // 🔥 Bypass domain validation if local development
+    if (isLocalHost(cleanOrigin)) {
+      req.platform = platform;
+      return next();
+    }
 
     // 🚨 ONLY MATCH IF ORIGIN === DOMAIN EXACTLY
     if (cleanOrigin !== cleanDbDomain || cleanHeaderDomain !== cleanDbDomain) {
