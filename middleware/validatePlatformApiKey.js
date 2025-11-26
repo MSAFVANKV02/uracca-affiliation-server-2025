@@ -44,7 +44,7 @@ export const validatePlatformApiKey = async (req, res, next) => {
     }
 
     // 🚨 ONLY MATCH IF ORIGIN === DOMAIN EXACTLY
-    if (cleanOrigin !== cleanDbDomain || cleanHeaderDomain !== cleanDbDomain) {
+    if (cleanOrigin && cleanOrigin !== cleanDbDomain || cleanHeaderDomain !== cleanDbDomain) {
       throw new InvalidError("Domain mismatch");
     }
 
