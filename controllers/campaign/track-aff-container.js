@@ -59,9 +59,8 @@ export const trackAffiliateClick = async (req, res, next) => {
     // --- 7️⃣ Add click to DailyAction Schema ---
     // await RecordAction(user._id, { clicks: 1 });
     await new DailyActionUpdater(user._id, user.workingOn)
-    .increment("clicks")
-    .apply();
-  
+      .increment("clicks")
+      .apply();
 
     // --- 8️⃣ Response ---
     return res.status(200).json({
@@ -91,7 +90,7 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
       productDetails = [],
       orderId,
     } = req.body;
-    console.log(req.body,"req.body");
+    // console.log(req.body, "req.body");
 
     // 1️⃣ Basic validation
     if (
@@ -128,19 +127,18 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
       campaignAccessKey,
       userId: user._id,
     });
-    if (!campaign){
+    if (!campaign) {
       //  return res.status(404).json({ message: "Campaign not found" });
-        throw new Error( "Campaign not found");
+      throw new Error("Campaign not found");
     }
-     
 
     // 5️⃣ Get platform info for that campaign admin
     const platform = await Platform.findOne({
       adminId: campaign.company.accountId,
     });
-    if (!platform){
+    if (!platform) {
       // return res.status(404).json({ message: "Platform not found for admin" });
-      throw new Error( "Platform not found for admin");
+      throw new Error("Platform not found for admin");
     }
 
     // ----------------------------------------------------------------
@@ -158,9 +156,7 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
       //   message: "No valid active products found for this order",
       //   blockedProducts,
       // });
-      throw new Error(
-        "No valid active products found for this order"
-      );
+      throw new Error("No valid active products found for this order");
     }
 
     // ----------------------------------------------------------------
@@ -168,10 +164,8 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
     // ----------------------------------------------------------------
     const campaignProductId = campaign.product?.productId?.toString();
     let eligibleCount = 0;
-    console.log(campaignProductId,'campaignProductId');
-    console.log(validProducts,'validProducts');
-
-    
+    // console.log(campaignProductId,'campaignProductId');
+    // console.log(validProducts,'validProducts');
 
     if (user?.affType?.commissionType === "ONLY_AFF_PRODUCT") {
       const matched = validProducts.some(
@@ -181,9 +175,7 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
         // return res.status(400).json({
         //   message: "This product is not part of the current campaign",
         // });
-        throw new Error(
-          "This product is not part of the current campaign"
-        );
+        throw new Error("This product is not part of the current campaign");
       }
       eligibleCount = 1;
     } else if (user?.affType?.commissionType === "ALL_PRODUCT") {
@@ -207,6 +199,8 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
     // 🧩 Step C: Determine Commission %
     // ----------------------------------------------------------------
     let commissionPercent = 0;
+    console.log(commissionPercent,'commissionPercent');
+    
 
     if (user?.affType?.commission > 0) {
       commissionPercent = user.affType.commission;
@@ -301,8 +295,8 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
     // --- 7️⃣ Add click to DailyAction Schema ---
     // await RecordAction(user._id, { orders: 1 });
     await new DailyActionUpdater(user._id, user.workingOn)
-    .increment("orders")
-    .apply();
+      .increment("orders")
+      .apply();
 
     // ✅ Response
     return res.status(200).json({
