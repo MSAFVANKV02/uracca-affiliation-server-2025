@@ -16,13 +16,14 @@ import DailyAction from "../../models/actionSchema.js";
 export const bulkDataController = async (req, res, next) => {
   try {
     const adminId = req.admin._id;
-    const currentAdminType = req.admin.userType === "SUPER_ADMIN" ? "SUPER_ADMIN" : "ADMIN";
+    const currentAdminType =
+      req.admin.userType === "SUPER_ADMIN" ? "SUPER_ADMIN" : "ADMIN";
 
     // 1️⃣ Get Users under this admin
     // const users = await AffUser.find({ workingOn: adminId })
     //   .select("fullName email mobile referralId status commissionDetails actions social documents");
     // 1️⃣ Get Users under this admin using collaborateWith
-    const allUsers =  await AffUser.find()
+    const allUsers = await AffUser.find();
     const users = await AffUser.find({
       collaborateWith: {
         $elemMatch: { accountId: adminId },
@@ -157,7 +158,9 @@ export const bulkDataController = async (req, res, next) => {
     const approvedUsers = users.filter((u) => u.status === "APPROVED").length;
     let pendingApplications = 0;
     if (currentAdminType === "SUPER_ADMIN") {
-      pendingApplications = allUsers.filter((u) => u.status === "PENDING").length;
+      pendingApplications = allUsers.filter(
+        (u) => u.status === "PENDING"
+      ).length;
     }
     // const pendingApplications = allUsers.filter(
     //   (u) => u.status === "PENDING"
@@ -249,7 +252,7 @@ export const bulkDataController = async (req, res, next) => {
     });
   } catch (error) {
     console.error("Error fetching bulk admin data:", error);
-    next(error)
+    next(error);
     // res.status(500).json({
     //   success: false,
     //   message: "Server error fetching admin dashboard data",
@@ -459,14 +462,13 @@ export const getEarningChartDataController = async (req, res) => {
   }
 };
 
-
-
-
 // ====== user chart
 export const getUserChartDataController = async (req, res) => {
+  console.log(req.params, "req.params");
+
   try {
-    const userId = req.user._id;
-    const adminId = req.user.workingOn;
+    const userId = req.user ? req.user?._id : req.params.userId;
+    const adminId = req.user ?req.user.workingOn : req.admin._id;
 
     const { type = "revenue", period = "monthly" } = req.query;
 
@@ -548,6 +550,14 @@ export const getUserChartDataController = async (req, res) => {
       }).lean();
     }
 
+    // ⭐ NEW: We MUST fetch DailyAction separately for conversion.
+    const rawActionsForConversion = await DailyAction.find({
+      userId,
+      adminId,
+      createdAt: { $gte: extendedStart, $lte: now },
+    }).lean();
+    // ⭐ END NEW
+
     // Build buckets for the *current* displayed period (same as before)
     const currentBuckets = {};
 
@@ -556,23 +566,27 @@ export const getUserChartDataController = async (req, res) => {
         const d = new Date(now);
         d.setDate(now.getDate() - i);
         const label = d.toLocaleDateString("en-US", groupFormat);
-        currentBuckets[label] = { label, value: 0 };
+        currentBuckets[label] = { label, value: 0, conversion: 0 };
       }
     } else if (period === "weekly") {
       for (let i = 4; i >= 0; i--) {
         const label = `Week ${5 - i}`;
-        currentBuckets[label] = { label, value: 0 };
+        currentBuckets[label] = { label, value: 0, conversion: 0 };
       }
     } else if (period === "monthly") {
       for (let m = 0; m < 12; m++) {
         const label = new Date(now.getFullYear(), m).toLocaleString("en-US", {
           month: "short",
         });
-        currentBuckets[label] = { label, value: 0 };
+        currentBuckets[label] = { label, value: 0, conversion: 0 };
       }
     } else if (period === "yearly") {
       for (let y = now.getFullYear() - 4; y <= now.getFullYear(); y++) {
-        currentBuckets[y.toString()] = { label: y.toString(), value: 0 };
+        currentBuckets[y.toString()] = {
+          label: y.toString(),
+          value: 0,
+          conversion: 0,
+        };
       }
     }
 
@@ -596,11 +610,40 @@ export const getUserChartDataController = async (req, res) => {
       if (!currentBuckets[label]) continue;
 
       if (type === "revenue") {
-        currentBuckets[label].value += r.finalCommission || r.commissionAmount || 0;
+        currentBuckets[label].value +=
+          r.finalCommission || r.commissionAmount || 0;
       } else {
         currentBuckets[label].value += r.clicks || 0;
       }
     }
+
+    // ⭐ NEW: Fill conversion separately
+    for (const action of rawActionsForConversion) {
+      const date = new Date(action.createdAt);
+      if (date < startDate) continue;
+
+      let label;
+      if (period === "yearly") {
+        label = date.getFullYear().toString();
+      } else if (period === "monthly") {
+        label = date.toLocaleString("en-US", { month: "short" });
+      } else if (period === "weekly") {
+        const weekIndex = Math.floor((now - date) / WEEK_MS);
+        label = `Week ${Math.max(1, 5 - weekIndex)}`;
+      } else {
+        label = date.toLocaleDateString("en-US", groupFormat);
+      }
+
+      if (!currentBuckets[label]) continue;
+
+      const clicks = action.clicks || 0;
+      const orders = action.orders || 0;
+
+      if (clicks > 0) {
+        currentBuckets[label].conversion += (orders / clicks) * 100; // ⭐ NEW
+      }
+    }
+    // ⭐ END OF NEW BLOCK
 
     const chartData = Object.values(currentBuckets);
 
@@ -651,6 +694,8 @@ export const getUserChartDataController = async (req, res) => {
       percentageChange, // raw number (can be positive/negative)
     };
 
+    console.log(chartData);
+
     const safePayload = clean({
       summary,
       chartData,
@@ -686,7 +731,6 @@ export const getUserChartDataController = async (req, res) => {
 
 //     const now = new Date();
 //     let startDate, groupFormat;
-    
 
 //     // ⏳ Time grouping logic
 //     switch (period) {

@@ -8,6 +8,8 @@ router.get("/",authenticateAdmin,bulkDataController)
 
 router.get("/chart-data",authenticateAdmin,getEarningChartDataController)
 router.get("/user-chart-data",authenticateUser,getUserChartDataController)
+router.get("/user-chart-data/:userId",authenticateAdmin,getUserChartDataController)
+
 
 
 

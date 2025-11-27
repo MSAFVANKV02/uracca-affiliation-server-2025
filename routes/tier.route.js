@@ -6,6 +6,7 @@ import {
   deleteAffiliateTierController,
   toggleAffiliateTierStatusController,
 } from "../controllers/tier/tier.controller.js";
+import { getAllAffiliateTiersController } from "../controllers/tier/tier.retrieve.controller.js";
 const router = express.Router();
 
 // Create Tier
@@ -27,5 +28,10 @@ router.patch(
   authenticateAdmin,
   toggleAffiliateTierStatusController
 );
+
+
+//  ==== GET routes can be added here ====
+
+router.get("/", authenticateAdmin, getAllAffiliateTiersController);
 
 export default router;

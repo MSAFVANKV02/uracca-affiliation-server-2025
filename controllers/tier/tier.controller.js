@@ -20,7 +20,7 @@ export const createAffiliateTierController = async (req, res, next) => {
   //   validateBodyKeys(req.body, allowedKeys);
 
   // ⭐ VALIDATE BODY USING TIER SCHEMA
-//   validateBodyBySchema(req.body, Tier.schema);
+  //   validateBodyBySchema(req.body, Tier.schema);
 
   try {
     const { tierName, description, levels = [] } = req.body;
@@ -145,7 +145,7 @@ export const updateAffiliateTierController = async (req, res, next) => {
 // ================================================================ ///
 
 export const deleteAffiliateTierController = async (req, res, next) => {
-  console.log("Delete Tier Controller Invoked");
+//   console.log("Delete Tier Controller Invoked");
 
   try {
     const { tierId } = req.params;

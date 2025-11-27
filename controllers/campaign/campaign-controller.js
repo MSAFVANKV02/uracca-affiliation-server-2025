@@ -103,10 +103,10 @@ export const createCampaign = async (req, res) => {
 //   ==== get users campaigns ===
 export const getUserCampaigns = async (req, res, next) => {
   try {
-    const user = req.user; // ✅ authenticated user from middleware
+    const userId = req.user ? req.user?._id : req.params.userId;
     // console.log(user, "user getUserCampaigns");
 
-    if (!user) {
+    if (!userId) {
       // return res.status(401).json({ success: false, message: "Unauthorized" });
       throw new Error("Unauthorized");
     }
@@ -115,7 +115,7 @@ export const getUserCampaigns = async (req, res, next) => {
     const { accountId, date, sort } = req.query;
     console.log(req.query, "req.query");
 
-    const query = { userId: user._id };
+    const query = { userId: userId };
     if (accountId) {
       query["company.accountId"] = accountId;
     }
