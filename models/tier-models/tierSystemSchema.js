@@ -1,0 +1,55 @@
+import mongoose from "mongoose";
+
+/* ---------------------- Level Setup Inside Each Tier ---------------------- */
+
+const levelRewardSchema = new mongoose.Schema({
+  method: { type: String, enum: ["SPIN", "SCRATCHCARD"], required: true },
+  rewardType: { type: String, enum: ["CASH", "COINS"], required: true },
+  value: { type: Number, required: true },
+});
+
+const levelGoalSchema = new mongoose.Schema({
+  goalType: {
+    type: String,
+    enum: ["ORDERS", "CLICKS", "SALES"],
+    required: true,
+  },
+  target: { type: Number, required: true },
+  rewards: levelRewardSchema,
+});
+
+const tierLevelSchema = new mongoose.Schema({
+  levelNumber: { type: Number, required: true }, // Level 1, Level 2, Level 3...
+
+  goals: [levelGoalSchema], // Multiple goals
+
+  createdAt: { type: Date, default: Date.now },
+});
+
+/* ---------------------------- Tier Main Schema ---------------------------- */
+
+const tierSchema = new mongoose.Schema(
+  {
+    adminId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    isActive: { type: Boolean, default: true },
+    platformId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Platform",
+      required: true,
+    },
+
+    tierName: { type: String, required: true }, // Silver / Gold / etc.
+    description: { type: String },
+
+    order: { type: Number, default: 1 }, // Tier sorting (Starter=1, Bronze=2...)
+
+    levels: [tierLevelSchema], // Array of levels
+  },
+  { timestamps: true }
+);
+
+export const Tier = mongoose.models.Tier || mongoose.model("Tier", tierSchema);

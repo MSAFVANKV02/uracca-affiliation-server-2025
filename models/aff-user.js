@@ -75,6 +75,7 @@ const userSchema = new mongoose.Schema(
     // domain: { type: String,  },
     referralCount: { type: Number, default: 0 },
     domain: { type: mongoose.Schema.Types.ObjectId, ref: "domain" },
+    platformId: { type: mongoose.Schema.Types.ObjectId, ref: "Platform" },
     campaignAccessKey: [String],
     campaignId: [{ type: mongoose.Schema.Types.ObjectId, ref: "Campaign" }],
     collaborateWith: [

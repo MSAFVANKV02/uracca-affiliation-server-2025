@@ -7,6 +7,8 @@ import { ExtractDomainParts } from "../../helper/domain-existence.js";
 import Domains from "../../models/domainSchema.js";
 import { getCookieDomain } from "../../helper/req-call.js";
 import { NotFoundError, UnauthorizedError } from "../../utils/errors.js";
+import { NpmPackage } from "../../models/npmSchema.js";
+import { generateApiKey } from "../../utils/generateApiKey.js";
 
 const JWT_SECRET_ADMIN = process.env.JWT_SECRET_ADMIN || "supersecretkey";
 const JWT_SECRET_USER = process.env.JWT_SECRET_USER || "supersecretkey";
@@ -38,7 +40,9 @@ export const registerUser = async (req, res) => {
       // }
       if (existingSuperAdmin) {
         if (type === "SUPER_ADMIN") {
-          console.log("⚠ SUPER_ADMIN already exists → updating this user to ADMIN");
+          console.log(
+            "⚠ SUPER_ADMIN already exists → updating this user to ADMIN"
+          );
         }
         userType = "ADMIN"; // force admin
       } else {
@@ -143,6 +147,14 @@ export const registerUser = async (req, res) => {
     newDomain.registeredUserId = newUser._id;
     await newDomain.save();
 
+    //  create api key  ==================
+    // await NpmPackage.create({
+    //   platformName: domainName || "",
+    //   domain: domainUrl,
+    //   apiKey: generateApiKey(),
+    // });
+    //  ===================================
+
     // ✅ Create Platform entry
     const platform = new Platform({
       adminId: newUser._id,
@@ -150,6 +162,11 @@ export const registerUser = async (req, res) => {
       domain: domainUrl,
     });
     await platform.save();
+
+    // 🚀 VERY IMPORTANT PART:
+    // Save platformId inside user schema
+    newUser.platformId = platform._id;
+    await newUser.save();
 
     return res.status(201).json({
       message: "Registration successful",
@@ -314,7 +331,8 @@ export const loginUser = async (req, res, next) => {
       message: "Successfully Logged In",
       token,
     });
-  } catch (error) {console.error("Login error:", error);
+  } catch (error) {
+    console.error("Login error:", error);
     next(error);
     // console.error("Login error:", error);
     // return res.status(500).json({
