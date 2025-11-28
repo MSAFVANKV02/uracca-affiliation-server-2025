@@ -1,35 +1,46 @@
 import DailyAction from "../../models/actionSchema.js";
 import AffUser from "../../models/aff-user.js";
+import { Commissions } from "../../models/commissionSchema.js";
 import { UserTypeEnum } from "../../models/enum.js";
 import { encryptData } from "../../utils/cript-data.js";
 import { NotFoundError } from "../../utils/errors.js";
 
-export const getCurrentUsers = async (req, res) => {
+export const getCurrentUsers = async (req, res, next) => {
   try {
-    const adminId = req.admin._id;
-    const userId = req.user._id;
+    console.log(req.admin, "req.admin");
+    console.log(req.user, "req.user");
 
-    let checkId = adminId || userId;
+    // Admin case (admin making request)
+    const adminId = req.admin?._id;
+    
+    // Normal affiliate user case (user making request)
+    const userId = req.user?._id;
 
-    if (!adminId || !userId) {
+    // Decide which ID to use
+    const checkId = adminId || userId;
+
+    if (!checkId) {
       throw new NotFoundError("User Id Not Found!");
     }
 
-    const user = await AffUser.findById({ _id: checkId });
+    const user = await AffUser.findById(checkId);
 
     if (!user) {
       throw new NotFoundError("User Not Found!");
     }
 
+    const encryptedData = encryptData(user);
+
     return res.status(200).json({
       message: "User Fetching Successfully Completed",
-      data: user,
+      data: encryptedData,
       success: true,
     });
   } catch (error) {
     next(error);
   }
 };
+
 
 export const getAllAffUsers = async (req, res) => {
   // console.log('getAllAffUsers');
@@ -123,15 +134,49 @@ export const getAllAffUsersForEachAdmins = async (req, res) => {
           },
         ]);
 
+        // 🔥 NEW: Total Pending Commission
+        const pendingCommission = await Commissions.aggregate([
+          {
+            $match: {
+              userId: user._id,
+              adminId: adminId,
+              status: "PENDING",
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalPendingCommission: { $sum: "$finalCommission" },
+            },
+          },
+        ]);
+
+        // return {
+        //   ...user.toObject(),
+        //   summary: summary[0] || {
+        //     totalClicks: 0,
+        //     totalOrders: 0,
+        //     totalSales: 0,
+        //     totalEarnings: 0,
+        //     totalPaidCommission: 0,
+        //     totalActiveCampaigns: 0,
+        //   },
+        // };
         return {
           ...user.toObject(),
-          summary: summary[0] || {
-            totalClicks: 0,
-            totalOrders: 0,
-            totalSales: 0,
-            totalEarnings: 0,
-            totalPaidCommission: 0,
-            totalActiveCampaigns: 0,
+          summary: {
+            ...(summary[0] || {
+              totalClicks: 0,
+              totalOrders: 0,
+              totalSales: 0,
+              totalEarnings: 0,
+              totalPaidCommission: 0,
+              totalActiveCampaigns: 0,
+            }),
+
+            // 🔥 Add Pending Commission here
+            totalPendingCommission:
+              pendingCommission[0]?.totalPendingCommission || 0,
           },
         };
       })

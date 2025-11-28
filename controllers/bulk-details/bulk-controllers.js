@@ -464,7 +464,7 @@ export const getEarningChartDataController = async (req, res) => {
 
 // ====== user chart
 export const getUserChartDataController = async (req, res) => {
-  console.log(req.params, "req.params");
+  // console.log(req.params, "req.params");
 
   try {
     const userId = req.user ? req.user?._id : req.params.userId;
@@ -694,7 +694,7 @@ export const getUserChartDataController = async (req, res) => {
       percentageChange, // raw number (can be positive/negative)
     };
 
-    console.log(chartData);
+    // console.log(chartData);
 
     const safePayload = clean({
       summary,

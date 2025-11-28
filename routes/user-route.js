@@ -8,7 +8,7 @@ import { authenticateAdmin, authenticateUser } from "../middleware/middleware.js
 
 
 
-router.get("/current-user",authenticateAdmin, getCurrentUsers);
+router.get("/current-admin",authenticateAdmin, getCurrentUsers);
 
 
 router.get("/all",authenticateAdmin, getAllAffUsersForEachAdmins);

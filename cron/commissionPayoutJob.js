@@ -15,6 +15,11 @@ cron.schedule("0 0 * * *", async () => {
       .populate("campaignId") // to update campaign summary
       .populate("adminId"); // if needed
 
+
+    // const holdRecords = await Commissions.find({ status: "HOLD" })
+    // .populate("campaignId") // to update campaign summary
+    // .populate("adminId");
+
     let totalUpdated = 0;
 
     for (const record of pendingRecords) {

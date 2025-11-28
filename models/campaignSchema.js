@@ -60,7 +60,8 @@ const campaignSchema = new mongoose.Schema({
     enum: ["ACTIVE", "INACTIVE", "PAUSED", "ENDED", "HOLD"],
     default: "ACTIVE",
   },
-});
+},
+{ timestamps: true });
 
 export const Campaign =
   mongoose.models.Campaign || mongoose.model("Campaign", campaignSchema);

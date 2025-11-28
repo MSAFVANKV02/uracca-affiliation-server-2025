@@ -10,9 +10,10 @@ const commissionRecordSchema = new mongoose.Schema({
   purchaseAmount: { type: Number, required: true },
   tdsAmount: { type: Number, default: 0 }, // TDS per transaction
   finalCommission: { type: Number, default: 0 }, // after TDS deduction
+  blockedAmount: { type: Number, default: 0 }, // after TDS deduction
   status: {
     type: String,
-    enum: ["PENDING", "PAID", "CANCELLED"],
+    enum: ["PENDING","HOLD", "PAID", "CANCELLED"],
     default: "PENDING",
   },
   createdAt: { type: Date, default: Date.now },

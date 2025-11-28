@@ -113,7 +113,7 @@ export const getUserCampaigns = async (req, res, next) => {
 
     // Optional filter: only campaigns for a specific admin/platform
     const { accountId, date, sort } = req.query;
-    console.log(req.query, "req.query");
+    // console.log(req.query, "req.query");
 
     const query = { userId: userId };
     if (accountId) {
@@ -159,4 +159,75 @@ export const getUserCampaigns = async (req, res, next) => {
     // });
     next(error);
   }
+};
+
+
+
+// =====================================================
+// ============== UPDATE CAMPAIGN ======================
+// =====================================================
+
+export const genericUpdateCampaigns = async (req, res, next) => {
+  try {
+    const { campaignId } = req.params;  // ← FIXED: you must pass campaignId
+    const adminId = req.admin ? req.admin._id : null;
+    const updateData = req.body;
+
+    // console.log(req.admin,'adminId in genericUpdateCampaigns');
+
+    // console.log(updateData,'updateData in genericUpdateCampaigns');
+    
+
+    const updatedCampaign = await updateAffUserCampaignWidget(
+      campaignId,
+      adminId,
+      updateData
+    );
+
+    const encryptedData = encryptData(updatedCampaign);
+
+    return res.status(200).json({
+      success: true,
+      message: "Campaign updated successfully",
+      data: encryptedData,
+    });
+  } catch (err) {
+    next(err)
+    // return res.status(500).json({
+    //   success: false,
+    //   message: "Internal server error while updating campaign",
+    //   error: err.message,
+    // });
+
+  }
+};
+
+
+export const updateAffUserCampaignWidget = async (
+  campaignId,
+  adminId,
+  updateData
+) => {
+  // 1. Make sure campaign exists & belongs to this admin
+  const existing = await Campaign.findOne({
+    _id: campaignId,
+    "company.accountId": adminId,   // only update if this admin owns it
+  });
+
+  if (!existing) {
+    throw new Error("Campaign not found or not owned by this admin");
+  }
+
+  // 2. Update the campaign
+  const updatedCampaign = await Campaign.findByIdAndUpdate(
+    campaignId,
+    { $set: updateData },
+    { new: true, runValidators: true }
+  );
+
+  if (!updatedCampaign) {
+    throw new Error("Failed to update campaign");
+  }
+
+  return updatedCampaign;
 };

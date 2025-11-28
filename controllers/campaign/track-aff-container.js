@@ -82,7 +82,7 @@ export const trackAffiliateClick = async (req, res, next) => {
 // ==================== purchaseOrderWithAffiliateCampaign ====================
 
 export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
-  console.log("inside purchaseOrderWithAffiliateCampaign");
+  // console.log("inside purchaseOrderWithAffiliateCampaign");
   try {
     const {
       referralId,
@@ -113,6 +113,10 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
     if (!user)
       return res.status(404).json({ message: "Affiliate user not found" });
 
+
+    if (user.status !== "APPROVED")
+      return res.status(404).json({ message: `user status is : ${user.status}` });
+
     // 3️⃣ Validate campaignAccessKey
     const validKey =
       Array.isArray(user.campaignAccessKey) &&
@@ -127,10 +131,20 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
       campaignAccessKey,
       userId: user._id,
     });
+   
+    
     if (!campaign) {
-      //  return res.status(404).json({ message: "Campaign not found" });
       throw new Error("Campaign not found");
     }
+    
+    if (campaign.status !== "ACTIVE" && campaign.status !== "PAUSED") {
+      throw new Error(`Campaign is ${campaign.status} and cannot be accessed`);
+    }
+    
+
+    // if(campaign.status === "HOLD"){
+
+    // }
 
     // 5️⃣ Get platform info for that campaign admin
     const platform = await Platform.findOne({
@@ -270,7 +284,7 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
       purchaseAmount: totalValidAmount,
       tdsAmount,
       finalCommission,
-      status: "PENDING",
+      status: campaign.status === "PAUSED" ?"HOLD": "PENDING",
       createdAt: new Date(),
       productIds: validProducts.map((p) => p.productId),
     });

@@ -6,6 +6,7 @@ const levelRewardSchema = new mongoose.Schema({
   method: { type: String, enum: ["SPIN", "SCRATCHCARD"], required: true },
   rewardType: { type: String, enum: ["CASH", "COINS"], required: true },
   value: { type: Number, required: true },
+  isActive: { type: Boolean, default: true },
 });
 
 const levelGoalSchema = new mongoose.Schema({
@@ -15,12 +16,12 @@ const levelGoalSchema = new mongoose.Schema({
     required: true,
   },
   target: { type: Number, required: true },
-  rewards: levelRewardSchema,
+  
 });
 
 const tierLevelSchema = new mongoose.Schema({
   levelNumber: { type: Number, required: true }, // Level 1, Level 2, Level 3...
-
+  rewards: [levelRewardSchema],
   goals: [levelGoalSchema], // Multiple goals
 
   createdAt: { type: Date, default: Date.now },
