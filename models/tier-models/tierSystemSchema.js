@@ -3,9 +3,13 @@ import mongoose from "mongoose";
 /* ---------------------- Level Setup Inside Each Tier ---------------------- */
 
 const levelRewardSchema = new mongoose.Schema({
-  method: { type: String, enum: ["SPIN", "SCRATCHCARD"], required: true },
-  rewardType: { type: String, enum: ["CASH", "COINS"], required: true },
-  value: { type: Number, required: true },
+  // method: { type: String, enum: ["SPIN", "SCRATCHCARD"], required: true },
+  rewardType: { type: String },
+  label: { type: String, required: true },
+  type: { type: String },
+  value: { type: String, required: true },
+  color: { type: String, required: true },
+  textColor: { type: String, required: true },
   isActive: { type: Boolean, default: true },
 });
 
@@ -16,14 +20,13 @@ const levelGoalSchema = new mongoose.Schema({
     required: true,
   },
   target: { type: Number, required: true },
-  
 });
 
 const tierLevelSchema = new mongoose.Schema({
   levelNumber: { type: Number, required: true }, // Level 1, Level 2, Level 3...
   rewards: [levelRewardSchema],
   goals: [levelGoalSchema], // Multiple goals
-
+  rewardMethod: { type: String, enum: ["SPIN", "SCRATCHCARD"], required: true },
   createdAt: { type: Date, default: Date.now },
 });
 

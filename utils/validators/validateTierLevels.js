@@ -1,66 +1,98 @@
+// ===================== VALIDATE TIER LEVELS ===================== //
+
 export const validateTierLevels = (levels) => {
-    if (!Array.isArray(levels)) {
-      throw new Error("Levels must be an array");
+  if (!Array.isArray(levels)) {
+    throw new Error("Levels must be an array");
+  }
+
+  const validGoalTypes = ["ORDERS", "CLICKS", "SALES"];
+  const validMethods = ["SPIN", "SCRATCHCARD"];
+
+  levels.forEach((lvl, index) => {
+    const levelLabel = `Level ${lvl.levelNumber || index + 1}`;
+
+    // -------------------------------
+    // Validate levelNumber
+    // -------------------------------
+    if (typeof lvl.levelNumber !== "number" || lvl.levelNumber <= 0) {
+      throw new Error(`${levelLabel}: levelNumber must be a positive number`);
     }
-  
-    const validGoalTypes = ["ORDERS", "CLICKS", "SALES"];
-    const validMethods = ["SPIN", "SCRATCHCARD"];
-    const validRewardTypes = ["CASH", "COINS"];
-  
-    levels.forEach((lvl, index) => {
-      // Validate level number
-      if (typeof lvl.levelNumber !== "number" || lvl.levelNumber <= 0) {
-        throw new Error(`Level ${index + 1}: levelNumber must be a positive number`);
+
+    // -------------------------------
+    // Validate rewardMethod
+    // -------------------------------
+    if (!validMethods.includes(lvl.rewardMethod)) {
+      throw new Error(
+        `${levelLabel}: Invalid rewardMethod "${lvl.rewardMethod}". Allowed: ${validMethods.join(
+          ", "
+        )}`
+      );
+    }
+
+    // -------------------------------
+    // Validate goals[]
+    // -------------------------------
+    if (!Array.isArray(lvl.goals) || lvl.goals.length === 0) {
+      throw new Error(`${levelLabel}: goals must be a non-empty array`);
+    }
+
+    lvl.goals.forEach((goal, i) => {
+      const goalLabel = `${levelLabel}, Goal ${i + 1}`;
+
+      if (!validGoalTypes.includes(goal.goalType)) {
+        throw new Error(
+          `${goalLabel}: Invalid goalType "${goal.goalType}". Allowed: ${validGoalTypes.join(
+            ", "
+          )}`
+        );
       }
-  
-      // Validate goals array
-      if (!Array.isArray(lvl.goals) || lvl.goals.length === 0) {
-        throw new Error(`Level ${lvl.levelNumber}: goals must be a non-empty array`);
+
+      if (typeof goal.target !== "number" || goal.target <= 0) {
+        throw new Error(`${goalLabel}: target must be a positive number`);
       }
-  
-      lvl.goals.forEach((goal, goalIndex) => {
-        // Validate goalType
-        if (!validGoalTypes.includes(goal.goalType)) {
-          throw new Error(
-            `Level ${lvl.levelNumber}, Goal ${goalIndex + 1}: Invalid goalType "${goal.goalType}". Allowed: ${validGoalTypes.join(", ")}`
-          );
-        }
-  
-        // Validate target
-        if (typeof goal.target !== "number" || goal.target <= 0) {
-          throw new Error(
-            `Level ${lvl.levelNumber}, Goal ${goalIndex + 1}: target must be a positive number`
-          );
-        }
-  
-        // Validate rewards object
-        if (!goal.rewards || typeof goal.rewards !== "object") {
-          throw new Error(
-            `Level ${lvl.levelNumber}, Goal ${goalIndex + 1}: rewards object is required`
-          );
-        }
-  
-        // Validate reward method
-        if (!validMethods.includes(goal.rewards.method)) {
-          throw new Error(
-            `Level ${lvl.levelNumber}, Goal ${goalIndex + 1}: Invalid reward method "${goal.rewards.method}". Allowed: ${validMethods.join(", ")}`
-          );
-        }
-  
-        // Validate reward type
-        if (!validRewardTypes.includes(goal.rewards.rewardType)) {
-          throw new Error(
-            `Level ${lvl.levelNumber}, Goal ${goalIndex + 1}: Invalid rewardType "${goal.rewards.rewardType}". Allowed: ${validRewardTypes.join(", ")}`
-          );
-        }
-  
-        // Validate reward value
-        if (typeof goal.rewards.value !== "number" || goal.rewards.value <= 0) {
-          throw new Error(
-            `Level ${lvl.levelNumber}, Goal ${goalIndex + 1}: reward value must be a positive number`
-          );
-        }
-      });
     });
-  };
-  
+
+    // -------------------------------
+    // Validate rewards[]
+    // -------------------------------
+    if (!Array.isArray(lvl.rewards) || lvl.rewards.length === 0) {
+      throw new Error(`${levelLabel}: rewards must be a non-empty array`);
+    }
+
+    lvl.rewards.forEach((reward, ri) => {
+      const rewardLabel = `${levelLabel}, Reward ${ri + 1}`;
+
+      // Required fields from schema
+      if (!reward.label || typeof reward.label !== "string") {
+        throw new Error(`${rewardLabel}: label is required`);
+      }
+
+      if (!reward.value || typeof reward.value !== "string") {
+        throw new Error(`${rewardLabel}: value is required and must be a string`);
+      }
+
+      if (!reward.color || typeof reward.color !== "string") {
+        throw new Error(`${rewardLabel}: color is required`);
+      }
+
+      if (!reward.textColor || typeof reward.textColor !== "string") {
+        throw new Error(`${rewardLabel}: textColor is required`);
+      }
+
+      // Optional fields — only validate type when provided
+      if (reward.rewardType && typeof reward.rewardType !== "string") {
+        throw new Error(`${rewardLabel}: rewardType must be a string`);
+      }
+
+      if (reward.type && typeof reward.type !== "string") {
+        throw new Error(`${rewardLabel}: type must be a string`);
+      }
+
+      if (reward.isActive !== undefined && typeof reward.isActive !== "boolean") {
+        throw new Error(`${rewardLabel}: isActive must be a boolean`);
+      }
+    });
+  });
+
+  return true; // Everything valid
+};
