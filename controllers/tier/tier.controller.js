@@ -76,6 +76,67 @@ export const createAffiliateTierController = async (req, res, next) => {
 // ================ UPDATE AFFILIATE TIER ========================= ///
 // ================================================================ ///
 
+// export const updateAffiliateTierController = async (req, res, next) => {
+//   try {
+//     const { tierId } = req.params;
+//     const { tierName, description, levels } = req.body;
+
+//     if (!tierId) {
+//       return res.status(400).json({ message: "Tier ID is required" });
+//     }
+
+//     const tier = await Tier.findById(tierId);
+
+//     if (!tier) {
+//       return res.status(404).json({ message: "Tier not found" });
+//     }
+
+//     /* -------------------- Update Basic Tier Fields -------------------- */
+
+//     if (typeof tierName === "string" && tierName.trim() !== "") {
+//       tier.tierName = tierName.trim();
+//     }
+
+//     if (typeof description === "string") {
+//       tier.description = description;
+//     }
+
+//     /* -------------------- Update Levels Only If Provided -------------------- */
+//     if (Array.isArray(levels)) {
+//       for (const levelData of levels) {
+//         const { _id, levelNumber, goals } = levelData;
+
+//         /* -------------------- Update Existing Level -------------------- */
+//         if (_id) {
+//           const existingLevel = tier.levels.id(_id);
+//           if (existingLevel) {
+//             if (levelNumber !== undefined)
+//               existingLevel.levelNumber = levelNumber;
+//             if (Array.isArray(goals)) {
+//               existingLevel.goals = goals; // Replace goals 1:1 as frontend sends
+//             }
+//           }
+//         } else {
+//           /* -------------------- Add New Level -------------------- */
+//           tier.levels.push({
+//             levelNumber,
+//             goals: Array.isArray(goals) ? goals : [],
+//             createdAt: new Date(),
+//           });
+//         }
+//       }
+//     }
+
+//     await tier.save();
+
+//     return res.status(200).json({
+//       message: "Tier updated successfully",
+//       tier,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 export const updateAffiliateTierController = async (req, res, next) => {
   try {
     const { tierId } = req.params;
@@ -86,45 +147,17 @@ export const updateAffiliateTierController = async (req, res, next) => {
     }
 
     const tier = await Tier.findById(tierId);
-
     if (!tier) {
       return res.status(404).json({ message: "Tier not found" });
     }
 
-    /* -------------------- Update Basic Tier Fields -------------------- */
+    // Update basic fields
+    if (tierName) tier.tierName = tierName;
+    if (description) tier.description = description;
 
-    if (typeof tierName === "string" && tierName.trim() !== "") {
-      tier.tierName = tierName.trim();
-    }
-
-    if (typeof description === "string") {
-      tier.description = description;
-    }
-
-    /* -------------------- Update Levels Only If Provided -------------------- */
+    // 🔥 Completely replace levels (correct way)
     if (Array.isArray(levels)) {
-      for (const levelData of levels) {
-        const { _id, levelNumber, goals } = levelData;
-
-        /* -------------------- Update Existing Level -------------------- */
-        if (_id) {
-          const existingLevel = tier.levels.id(_id);
-          if (existingLevel) {
-            if (levelNumber !== undefined)
-              existingLevel.levelNumber = levelNumber;
-            if (Array.isArray(goals)) {
-              existingLevel.goals = goals; // Replace goals 1:1 as frontend sends
-            }
-          }
-        } else {
-          /* -------------------- Add New Level -------------------- */
-          tier.levels.push({
-            levelNumber,
-            goals: Array.isArray(goals) ? goals : [],
-            createdAt: new Date(),
-          });
-        }
-      }
+      tier.levels = levels;
     }
 
     await tier.save();
@@ -133,10 +166,12 @@ export const updateAffiliateTierController = async (req, res, next) => {
       message: "Tier updated successfully",
       tier,
     });
+
   } catch (error) {
     next(error);
   }
 };
+
 
 // ================================================================ ///
 

@@ -24,6 +24,7 @@ const levelGoalSchema = new mongoose.Schema({
 
 const tierLevelSchema = new mongoose.Schema({
   levelNumber: { type: Number, required: true }, // Level 1, Level 2, Level 3...
+  timePeriod:{ type: String, default:"NONE" },
   rewards: [levelRewardSchema],
   goals: [levelGoalSchema], // Multiple goals
   rewardMethod: { type: String, enum: ["SPIN", "SCRATCHCARD"], required: true },
