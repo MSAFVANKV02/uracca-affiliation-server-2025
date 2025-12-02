@@ -7,8 +7,8 @@ import { NotFoundError } from "../../utils/errors.js";
 
 export const getCurrentUsers = async (req, res, next) => {
   try {
-    console.log(req.admin, "req.admin");
-    console.log(req.user, "req.user");
+    // console.log(req.admin, "req.admin");
+    // console.log(req.user, "req.user");
 
     // Admin case (admin making request)
     const adminId = req.admin?._id;

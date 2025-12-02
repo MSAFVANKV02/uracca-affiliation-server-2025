@@ -63,21 +63,21 @@ export const validateTierLevels = (levels) => {
       const rewardLabel = `${levelLabel}, Reward ${ri + 1}`;
 
       // Required fields from schema
-      if (!reward.label || typeof reward.label !== "string") {
-        throw new Error(`${rewardLabel}: label is required`);
-      }
+      // if (!reward.label || typeof reward.label !== "string") {
+      //   throw new Error(`${rewardLabel}: label is required`);
+      // }
 
       if (!reward.value || typeof reward.value !== "string") {
         throw new Error(`${rewardLabel}: value is required and must be a string`);
       }
 
-      if (!reward.color || typeof reward.color !== "string") {
-        throw new Error(`${rewardLabel}: color is required`);
-      }
+      // if (!reward.color || typeof reward.color !== "string") {
+      //   throw new Error(`${rewardLabel}: color is required`);
+      // }
 
-      if (!reward.textColor || typeof reward.textColor !== "string") {
-        throw new Error(`${rewardLabel}: textColor is required`);
-      }
+      // if (!reward.textColor || typeof reward.textColor !== "string") {
+      //   throw new Error(`${rewardLabel}: textColor is required`);
+      // }
 
       // Optional fields — only validate type when provided
       if (reward.rewardType && typeof reward.rewardType !== "string") {

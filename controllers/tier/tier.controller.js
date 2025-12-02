@@ -234,30 +234,30 @@ export const toggleAffiliateTierStatusController = async (req, res, next) => {
       return res.status(400).json({ message: "Tier ID is required" });
     }
 
-    // Find the tier owned by the admin
-    const tier = await Tier.findOne({
-      _id: tierId,
-      adminId: admin._id,
-    });
+    // Direct DB toggle (no validation)
+    const tier = await Tier.findOneAndUpdate(
+      { _id: tierId, adminId: admin._id },
+      [
+        { $set: { isActive: { $not: "$isActive" } } }
+      ],
+      { new: true, runValidators: false }
+    );
+    
 
     if (!tier) {
       return res.status(404).json({ message: "Tier not found" });
     }
 
-    // ⭐ Auto toggle
-    tier.isActive = !tier.isActive;
-
-    await tier.save();
-
     return res.status(200).json({
-      message: `Tier has been ${
-        tier.isActive ? "enabled" : "disabled"
-      } successfully`,
-      tier,
+      message: `Tier has been ${tier.isActive ? "enabled" : "disabled"} successfully`,
+      data: {
+        isActive: tier.isActive,
+      },
     });
   } catch (error) {
     next(error);
   }
 };
+
 
 // ================================================================ ///

@@ -3,6 +3,7 @@ import { Campaign } from "../../models/campaignSchema.js";
 import { Commissions } from "../../models/commissionSchema.js";
 import { Platform } from "../../models/platformSchema.js";
 import { Product } from "../../models/productSchema.js";
+import TierProgressEngine from "../../services/tier/tierProgressEngine.js";
 import { getAndValidatePlatformProducts } from "../../utils/platformProductUtils.js";
 import { DailyActionUpdater } from "../../utils/recordAction.js";
 import { CalculateTDS } from "./calculateTDS.js";
@@ -62,6 +63,31 @@ export const trackAffiliateClick = async (req, res, next) => {
       .increment("clicks")
       .apply();
 
+    // --------------------------------------------------------------------
+    // ⭐ 8️⃣ APPLY TIER PROGRESS ENGINE FOR CLICK GOALS
+    // --------------------------------------------------------------------
+
+    try {
+      // The admin who owns the campaign
+      const adminId = campaign.company.accountId;
+
+      // The platform for this campaign
+      const platform = await Platform.findOne({ adminId });
+
+      if (platform) {
+        await new TierProgressEngine({
+          user,
+          adminId,
+          platformId: platform._id,
+        }).incrementGoal("CLICKS", 1);
+      }
+    } catch (err) {
+      console.error("❌ TierProgressEngine Error:", err);
+      // Don't block the main API — just log the engine error
+    }
+
+    // --------------------------------------------------------------------
+
     // --- 8️⃣ Response ---
     return res.status(200).json({
       success: true,
@@ -113,9 +139,10 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
     if (!user)
       return res.status(404).json({ message: "Affiliate user not found" });
 
-
     if (user.status !== "APPROVED")
-      return res.status(404).json({ message: `user status is : ${user.status}` });
+      return res
+        .status(404)
+        .json({ message: `user status is : ${user.status}` });
 
     // 3️⃣ Validate campaignAccessKey
     const validKey =
@@ -131,16 +158,14 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
       campaignAccessKey,
       userId: user._id,
     });
-   
-    
+
     if (!campaign) {
       throw new Error("Campaign not found");
     }
-    
+
     if (campaign.status !== "ACTIVE" && campaign.status !== "PAUSED") {
       throw new Error(`Campaign is ${campaign.status} and cannot be accessed`);
     }
-    
 
     // if(campaign.status === "HOLD"){
 
@@ -214,7 +239,6 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
     // ----------------------------------------------------------------
     let commissionPercent = 0;
     // console.log(commissionPercent,'commissionPercent');
-    
 
     if (user?.affType?.commission > 0) {
       commissionPercent = user.affType.commission;
@@ -284,7 +308,7 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
       purchaseAmount: totalValidAmount,
       tdsAmount,
       finalCommission,
-      status: campaign.status === "PAUSED" ?"HOLD": "PENDING",
+      status: campaign.status === "PAUSED" ? "HOLD" : "PENDING",
       createdAt: new Date(),
       productIds: validProducts.map((p) => p.productId),
     });
@@ -311,6 +335,24 @@ export const purchaseOrderWithAffiliateCampaign = async (req, res, next) => {
     await new DailyActionUpdater(user._id, user.workingOn)
       .increment("orders")
       .apply();
+
+    // --------------------------------------------------------------------
+    // ⭐ APPLY TIER PROGRESS ENGINE FOR ORDER GOALS
+    // --------------------------------------------------------------------
+    try {
+      const adminId = campaign.company.accountId;
+      const platform = await Platform.findOne({ adminId });
+
+      if (platform) {
+        await new TierProgressEngine({
+          user,
+          adminId,
+          platformId: platform._id,
+        }).incrementGoal("ORDERS", 1);
+      }
+    } catch (err) {
+      console.error("❌ TierProgressEngine ORDER Error:", err);
+    }
 
     // ✅ Response
     return res.status(200).json({

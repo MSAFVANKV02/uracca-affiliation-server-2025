@@ -5,11 +5,11 @@ import mongoose from "mongoose";
 const levelRewardSchema = new mongoose.Schema({
   // method: { type: String, enum: ["SPIN", "SCRATCHCARD"], required: true },
   rewardType: { type: String },
-  label: { type: String, required: true },
-  type: { type: String },
+  label: { type: String,  },
+  valueType: { type: String },
   value: { type: String, required: true },
-  color: { type: String, required: true },
-  textColor: { type: String, required: true },
+  color: { type: String,  },
+  textColor: { type: String,  },
   isActive: { type: Boolean, default: true },
 });
 
@@ -25,6 +25,7 @@ const levelGoalSchema = new mongoose.Schema({
 const tierLevelSchema = new mongoose.Schema({
   levelNumber: { type: Number, required: true }, // Level 1, Level 2, Level 3...
   timePeriod:{ type: String, default:"NONE" },
+  isActive: { type: Boolean, default: true },
   rewards: [levelRewardSchema],
   goals: [levelGoalSchema], // Multiple goals
   rewardMethod: { type: String, enum: ["SPIN", "SCRATCHCARD"], required: true },

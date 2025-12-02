@@ -1,19 +1,19 @@
 import express from "express";
-import { authenticateAdmin } from "../middleware/middleware.js";
+import { authenticateAdmin, authenticateUser } from "../middleware/middleware.js";
 import {
   createAffiliateTierController,
   updateAffiliateTierController,
   deleteAffiliateTierController,
   toggleAffiliateTierStatusController,
 } from "../controllers/tier/tier.controller.js";
-import { getAllAffiliateTiersController, getAllAffiliateTiersWithIdController } from "../controllers/tier/tier.retrieve.controller.js";
+import { getAllAffiliateTiersController, getAllAffiliateTiersWithIdController, getUserTierProgressController } from "../controllers/tier/tier.retrieve.controller.js";
 const router = express.Router();
 
 // Create Tier
 router.post("/", authenticateAdmin, createAffiliateTierController);
 
 // Update Tier
-router.patch("/:tierId", authenticateAdmin, updateAffiliateTierController);
+router.put("/:tierId", authenticateAdmin, updateAffiliateTierController);
 
 // Delete Tier
 router.delete(
@@ -34,6 +34,8 @@ router.patch(
 
 router.get("/all", authenticateAdmin, getAllAffiliateTiersController);
 router.get("/:tierId", authenticateAdmin, getAllAffiliateTiersWithIdController);
+router.get("/user/my-tier", authenticateUser, getUserTierProgressController);
+
 
 
 export default router;

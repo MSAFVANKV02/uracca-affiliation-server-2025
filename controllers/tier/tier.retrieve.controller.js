@@ -1,12 +1,13 @@
+import { clean } from "../../helper/json-cleaner.js";
+import AffUser from "../../models/aff-user.js";
+import { TierRewardLog } from "../../models/tier-models/tierRewardLogsSchema.js";
 import { Tier } from "../../models/tier-models/tierSystemSchema.js";
 import { UserTierProgress } from "../../models/tier-models/tierUserProgressSchema.js";
 import { encryptData } from "../../utils/cript-data.js";
 
-
 // ================================================================ ///
 // ================ GET ALL AFFILIATE TIER ========================= ///
 // ================================================================ ///
-
 
 export const getAllAffiliateTiersController = async (req, res, next) => {
   try {
@@ -15,7 +16,7 @@ export const getAllAffiliateTiersController = async (req, res, next) => {
     // Fetch all tiers for the admin, sorted by 'order'
     const tiers = await Tier.find({ adminId: admin._id }).sort({ order: 1 });
 
-    const encryptedTier = encryptData(tiers)
+    const encryptedTier = encryptData(tiers);
 
     return res.status(200).json({
       success: true,
@@ -26,7 +27,6 @@ export const getAllAffiliateTiersController = async (req, res, next) => {
     next(error);
   }
 };
-
 
 export const getAllAffiliateTiersWithIdController = async (req, res, next) => {
   try {
@@ -74,37 +74,200 @@ export const getAllAffiliateTiersWithIdController = async (req, res, next) => {
   }
 };
 
-
 // ================================================================ ///
 // ================ GET USER AFFILIATE CURRENT TIER ========================= ///
 // ================================================================ ///
 
-
 export const getUserAffiliateCurrentTierController = async (req, res, next) => {
-    try {
-        const admin = req.admin;
-        const { userId } = req.params;
-    
-        if (!userId) {
-        return res.status(400).json({ message: "User ID is required" });
-        }
-    
-        // Fetch the user's current tier progress
-        const userTierProgress = await UserTierProgress.findOne({
-        userId,
-        adminId: admin._id,
-        }).populate("currentTierId");
-    
-        if (!userTierProgress) {
-        return res.status(404).json({ message: "User tier progress not found" });
-        }
-    
-        return res.status(200).json({
-        success: true,
-        message: "User's current affiliate tier fetched successfully",
-        data: userTierProgress.currentTierId,
-        });
-    } catch (error) {
-        next(error);
+  try {
+    const admin = req.admin;
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
     }
-}
+
+    // Fetch the user's current tier progress
+    const userTierProgress = await UserTierProgress.findOne({
+      userId,
+      adminId: admin._id,
+    }).populate("currentTierId");
+
+    if (!userTierProgress) {
+      return res.status(404).json({ message: "User tier progress not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "User's current affiliate tier fetched successfully",
+      data: userTierProgress.currentTierId,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ================================================================ ///
+// ================ GET USER AFFILIATE CURRENT TIER PROGRESS ========================= ///
+// ================================================================ ///
+
+export const getUserTierProgressController = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+
+    // 1️⃣ Validate user
+    const user = await AffUser.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const adminId = user.workingOn; // admin this user belongs to
+    const platformId = user.platformId;
+
+    // 2️⃣ Fetch progress doc
+    let progress = await UserTierProgress.findOne({
+      userId,
+      adminId,
+      // platformId,
+    });
+
+    if (!progress) {
+      return res.status(203).json({
+        message: "No tier progress found",
+        progress: null,
+      });
+    }
+
+    // 3️⃣ Load current tier
+    const tier = await Tier.findById(progress.currentTierId);
+    if (!tier)
+      return res.status(404).json({ message: "Tier not found for progress" });
+
+    const currentLevel = tier.levels.find(
+      (l) => l.levelNumber === progress.currentLevel
+    );
+
+    if (!currentLevel)
+      return res
+        .status(404)
+        .json({ message: "Current level not found in tier" });
+
+    // -----------------------------
+    // 4️⃣ Goal Completion Summary
+    // -----------------------------
+    const goals = currentLevel.goals;
+
+    const goalData = goals.map((g) => {
+      return {
+        goalType: g.goalType,
+        target: g.target,
+        progress:
+          g.goalType === "ORDERS"
+            ? progress.goalProgress.orders
+            : g.goalType === "CLICKS"
+            ? progress.goalProgress.clicks
+            : progress.goalProgress.sales,
+      };
+    });
+
+    // overall progress (for top progress bar)
+    const totalGoals = goals.length;
+    const completedGoals = goals.filter((g) => {
+      if (g.goalType === "ORDERS")
+        return progress.goalProgress.orders >= g.target;
+      if (g.goalType === "CLICKS")
+        return progress.goalProgress.clicks >= g.target;
+      return progress.goalProgress.sales >= g.target;
+    }).length;
+
+    const progressPercent = Math.round((completedGoals / totalGoals) * 100);
+
+    // -----------------------------
+    // 5️⃣ Pending CLAIMABLE Rewards
+    // -----------------------------
+    const pendingRewards = await TierRewardLog.find({
+      userId,
+      adminId,
+      platformId,
+      isClaimed: false,
+      action: "REWARD_EARNED",
+    }).lean();
+
+    // -----------------------------
+    // 6️⃣ Upcoming rewards (next level)
+    // -----------------------------
+    const nextLevel = tier.levels.find(
+      (lvl) => lvl.levelNumber === currentLevel.levelNumber + 1 && lvl.isActive
+    );
+
+    const upcomingRewards = nextLevel ? nextLevel.rewards : [];
+
+    // -----------------------------
+    // 7️⃣ Past Rewards (Processing / Paid)
+    // -----------------------------
+    const pastRewards = await TierRewardLog.find({
+      userId,
+      adminId,
+      platformId,
+      isClaimed: true,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // -----------------------------
+    // 8️⃣ SEND RESPONSE
+    // -----------------------------
+    // return res.status(200).json({
+    //   success: true,
+
+    //   currentStatus: {
+    //     tierName: tier.tierName,
+    //     level: currentLevel.levelNumber,
+    //     progressPercent,
+    //   },
+
+    //   goals: goalData,
+
+    //   pendingRewards,
+    //   upcomingRewards,
+    //   pastRewards,
+
+    //   debug: {
+    //     currentTierId: progress.currentTierId,
+    //     currentLevel: progress.currentLevel,
+    //     goalProgress: progress.goalProgress,
+    //   },
+    // });
+    // -----------------------------
+    // 🔐  ENCRYPT EVERYTHING
+    // -----------------------------
+    const safePayload = clean({
+      currentStatus: {
+        tierName: tier.tierName,
+        level: currentLevel.levelNumber,
+        progressPercent,
+      },
+
+      goals: goalData,
+      pendingRewards,
+      upcomingRewards,
+      pastRewards,
+
+      debug: {
+        currentTierId: progress.currentTierId,
+        currentLevel: progress.currentLevel,
+        goalProgress: progress.goalProgress,
+      },
+    });
+    const encryptedData = encryptData(safePayload);
+
+    // -----------------------------
+    // 8️⃣ SEND RESPONSE
+    // -----------------------------
+    return res.status(200).json({
+      success: true,
+      data: encryptedData,
+    });
+  } catch (err) {
+    console.error("Error fetching tier progress:", err);
+    next(err);
+  }
+};

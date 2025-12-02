@@ -14,8 +14,15 @@ const userTierProgressSchema = new mongoose.Schema(
 
     currentTierId: { type: mongoose.Schema.Types.ObjectId, ref: "Tier" },
     currentLevel: { type: Number, default: 1 },                         // ex: Level 2 under Bronze
+    isTierCompleted: { type: Boolean, default: false },
 
-    progressHistory: [progressHistorySchema],                           // all past tiers and levels
+    progressHistory: [progressHistorySchema],  
+    goalProgress: {
+      orders: { type: Number, default: 0 },
+      clicks: { type: Number, default: 0 },
+      sales:  { type: Number, default: 0 },
+    },
+                             // all past tiers and levels
 
     updatedAt: { type: Date, default: Date.now },
   },
