@@ -1,5 +1,6 @@
 import { clean } from "../../helper/json-cleaner.js";
 import AffUser from "../../models/aff-user.js";
+import { Platform } from "../../models/platformSchema.js";
 import { TierRewardLog } from "../../models/tier-models/tierRewardLogsSchema.js";
 import { Tier } from "../../models/tier-models/tierSystemSchema.js";
 import { UserTierProgress } from "../../models/tier-models/tierUserProgressSchema.js";
@@ -120,13 +121,28 @@ export const getUserTierProgressController = async (req, res, next) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     const adminId = user.workingOn; // admin this user belongs to
-    const platformId = user.platformId;
+    
+
+    // 2️⃣ Find Admin (IMPORTANT: MUST BE AWAITED)
+    const admin = await AffUser.findById(adminId);
+    if (!admin) {
+      // return res.status(404).json({ message: "Admin not found" });
+      throw new Error("Admin not found");
+    }
+
+    const platformId = admin.platformId;
+
+    // console.log("Platform ID:", platformId);
+    // console.log("Admin ID:", adminId);
+    // console.log(admin,'adminId===================');
+    // console.log(adminId,'adminId===================');
+    
 
     // 2️⃣ Fetch progress doc
     let progress = await UserTierProgress.findOne({
       userId,
       adminId,
-      // platformId,
+      platformId
     });
 
     if (!progress) {
@@ -138,17 +154,23 @@ export const getUserTierProgressController = async (req, res, next) => {
 
     // 3️⃣ Load current tier
     const tier = await Tier.findById(progress.currentTierId);
-    if (!tier)
-      return res.status(404).json({ message: "Tier not found for progress" });
+    if (!tier){
+      // return res.status(404).json({ message: "Tier not found for progress" });
+      throw new Error("Tier not found for progress");
+
+    }
 
     const currentLevel = tier.levels.find(
       (l) => l.levelNumber === progress.currentLevel
     );
 
-    if (!currentLevel)
-      return res
-        .status(404)
-        .json({ message: "Current level not found in tier" });
+    if (!currentLevel){
+      // return res
+      //   .status(404)
+      //   .json({ message: "Current level not found in tier" });
+      throw new Error("Current level not found in tier");
+    }
+   
 
     // -----------------------------
     // 4️⃣ Goal Completion Summary
@@ -168,17 +190,28 @@ export const getUserTierProgressController = async (req, res, next) => {
       };
     });
 
-    // overall progress (for top progress bar)
-    const totalGoals = goals.length;
-    const completedGoals = goals.filter((g) => {
-      if (g.goalType === "ORDERS")
-        return progress.goalProgress.orders >= g.target;
-      if (g.goalType === "CLICKS")
-        return progress.goalProgress.clicks >= g.target;
-      return progress.goalProgress.sales >= g.target;
-    }).length;
+    // overall progress (for top progress bar) – continuous based on each goal's percentage
+    let totalGoalProgress = 0;
 
-    const progressPercent = Math.round((completedGoals / totalGoals) * 100);
+    goals.forEach((g) => {
+      const current =
+        g.goalType === "ORDERS"
+          ? progress.goalProgress.orders
+          : g.goalType === "CLICKS"
+          ? progress.goalProgress.clicks
+          : progress.goalProgress.sales;
+
+      // avoid division by zero, and cap at 100% per goal
+      if (g.target > 0) {
+        totalGoalProgress += Math.min(current / g.target, 1); // 0 to 1
+      } else {
+        // if target is somehow 0, treat it as already complete
+        totalGoalProgress += 1;
+      }
+    });
+
+    const totalGoals = goals.length || 1; // avoid /0
+    const progressPercent = Math.round((totalGoalProgress / totalGoals) * 100);
 
     // -----------------------------
     // 5️⃣ Pending CLAIMABLE Rewards
@@ -212,6 +245,10 @@ export const getUserTierProgressController = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .lean();
 
+      if(!pastRewards){
+        throw new Error("No past rewards found");
+      }
+
     // -----------------------------
     // 8️⃣ SEND RESPONSE
     // -----------------------------
@@ -243,6 +280,7 @@ export const getUserTierProgressController = async (req, res, next) => {
       currentStatus: {
         tierName: tier.tierName,
         level: currentLevel.levelNumber,
+        currentTierLevel:tier.order,
         progressPercent,
       },
 
