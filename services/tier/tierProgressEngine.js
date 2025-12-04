@@ -437,11 +437,39 @@ export default class TierProgressEngine {
   }
 
   /* ------------------------------------------
-   * Grant rewards
+   * Grant rewards old saving all rewards
    * ------------------------------------------ */
-  async grantRewards(level, tier) {
-    for (const r of level.rewards) {
-      if (!r.isActive) continue;
+  // async grantRewards(level, tier) {
+  //   for (const r of level.rewards) {
+  //     if (!r.isActive) continue;
+
+  //     await TierRewardLog.create({
+  //       adminId: this.adminId,
+  //       platformId: this.platformId,
+  //       userId: this.user._id,
+  //       tierId: tier._id,
+  //       levelNumber: level.levelNumber,
+  //       rewardType: r.rewardType,
+  //       rewardMethod: level.rewardMethod, // spin or scratch
+  //       rewardValue: r.value,
+  //       rewardLabel: r.label,
+  //       valueType: r.valueType,
+  //       action: "REWARD_EARNED",
+  //     });
+  //   }
+  // }
+
+  /* ------------------------------------------
+ * Grant rewards (with random scratchcard logic)
+ * ------------------------------------------ */
+async grantRewards(level, tier) {
+  // If rewardMethod = SCRATCHCARD → pick only ONE reward randomly
+  if (level.rewardMethod === "SCRATCHCARD") {
+    const activeRewards = level.rewards.filter(r => r.isActive);
+
+    if (activeRewards.length > 0) {
+      const randomReward =
+        activeRewards[Math.floor(Math.random() * activeRewards.length)];
 
       await TierRewardLog.create({
         adminId: this.adminId,
@@ -449,15 +477,38 @@ export default class TierProgressEngine {
         userId: this.user._id,
         tierId: tier._id,
         levelNumber: level.levelNumber,
-        rewardType: r.rewardType,
-        rewardMethod: level.rewardMethod, // spin or scratch
-        rewardValue: r.value,
-        rewardLabel: r.label,
-        valueType: r.valueType,
+        rewardType: randomReward.rewardType,
+        rewardMethod: "SCRATCHCARD",
+        rewardValue: randomReward.value,
+        rewardLabel: randomReward.label,
+        valueType: randomReward.valueType,
         action: "REWARD_EARNED",
       });
     }
+
+    return; // ❗ important — prevent inserting ALL rewards
   }
+
+  // SPIN or NORMAL rewards → store all active rewards
+  for (const r of level.rewards) {
+    if (!r.isActive) continue;
+
+    await TierRewardLog.create({
+      adminId: this.adminId,
+      platformId: this.platformId,
+      userId: this.user._id,
+      tierId: tier._id,
+      levelNumber: level.levelNumber,
+      rewardType: r.rewardType,
+      rewardMethod: level.rewardMethod,
+      rewardValue: r.value,
+      rewardLabel: r.label,
+      valueType: r.valueType,
+      action: "REWARD_EARNED",
+    });
+  }
+}
+
 
   /* ------------------------------------------
    * Complete tier → move to next tier or finish system

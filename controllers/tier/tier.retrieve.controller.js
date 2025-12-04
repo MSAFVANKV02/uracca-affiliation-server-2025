@@ -340,18 +340,60 @@ export const getUserTierProgressController = async (req, res, next) => {
 
     const platformId = admin.platformId;
 
-    // 3️⃣ Get Progress Doc
-    const progress = await UserTierProgress.findOne({
+    // ============================================================
+    // 🚀 NEW LOGIC: If no progress doc → create first tier progress
+    // ============================================================
+    let progress = await UserTierProgress.findOne({
       userId,
       adminId,
       platformId,
     });
 
     if (!progress) {
-      return res.status(203).json({
-        success: false,
-        data: null,
-        message: "No tier progress found",
+      // Find first tier for admin/platform
+      const firstTier = await Tier.findOne({
+        adminId,
+        platformId,
+        isActive: true,
+      }).sort({ order: 1 });
+
+      if (!firstTier) {
+        return res.status(404).json({
+          success: false,
+          message: "No active tiers found for admin",
+        });
+      }
+
+      // First active level
+      const firstLevel =
+        firstTier.levels.find((l) => l.isActive && l.levelNumber === 1) ||
+        firstTier.levels.find((l) => l.isActive);
+
+      if (!firstLevel) {
+        return res.status(404).json({
+          success: false,
+          message: "Tier has no active levels",
+        });
+      }
+
+      // Build goalProgress
+      const goalProgress = firstLevel.goals.map((g) => ({
+        goalId: g._id.toString(),
+        goalType: g.goalType,
+        target: g.target,
+        progress: 0,
+        isCompleted: false,
+      }));
+
+      // Create new progress record
+      progress = await UserTierProgress.create({
+        userId,
+        adminId,
+        platformId,
+        currentTierId: firstTier._id,
+        currentLevel: firstLevel.levelNumber,
+        isTierCompleted: false,
+        goalProgress,
       });
     }
 
@@ -381,7 +423,7 @@ export const getUserTierProgressController = async (req, res, next) => {
       };
     });
 
-    // 6️⃣ LEVEL PROGRESS = average completion of all goals in this level
+    // 6️⃣ LEVEL PROGRESS CALC
     let totalPercent = 0;
 
     goals.forEach((g) => {
@@ -390,17 +432,13 @@ export const getUserTierProgressController = async (req, res, next) => {
       );
       const current = gp ? gp.progress : 0;
 
-      if (g.target > 0) {
-        totalPercent += Math.min(current / g.target, 1);
-      } else {
-        totalPercent += 1; // Goal with no target counts as complete
-      }
+      totalPercent += g.target > 0 ? Math.min(current / g.target, 1) : 1;
     });
 
     const totalGoals = goals.length || 1;
     let progressPercent = Math.round((totalPercent / totalGoals) * 100);
 
-    // 🔥7️⃣ Dynamic Next Step (Next Level or Next Tier)
+    // 🔥7️⃣ Dynamic Next Step
     const nextLevel = tier.levels.find(
       (lvl) => lvl.levelNumber === currentLevel.levelNumber + 1
     );
@@ -414,46 +452,23 @@ export const getUserTierProgressController = async (req, res, next) => {
       order: tier.order + 1,
       isActive: true,
     }));
-    
+
     const allGoalsCompleted = goalData.every((g) => g.isCompleted);
-    
-    // ---------------------------
-    // CASE 1: Next level exists
-    // ---------------------------
+
     if (!isLastLevel) {
-      nextStep = {
-        type: "NEXT_LEVEL",
-        value: nextLevel.levelNumber,
-      };
-    }
-    
-    // ---------------------------
-    // CASE 2: Last level but NOT last tier
-    // ---------------------------
-    else if (!isLastTier) {
+      nextStep = { type: "NEXT_LEVEL", value: nextLevel.levelNumber };
+    } else if (!isLastTier) {
       const nextTier = await Tier.findOne({
         adminId,
         platformId,
         order: tier.order + 1,
         isActive: true,
       });
-    
-      nextStep = {
-        type: "NEXT_TIER",
-        value: nextTier.tierName,
-      };
-    }
-    
-    // ---------------------------
-    // CASE 3: Last tier + last level
-    // ONLY COMPLETED_ALL if goalsCompleted = true
-    // ---------------------------
-    else {
+
+      nextStep = { type: "NEXT_TIER", value: nextTier.tierName };
+    } else {
       if (allGoalsCompleted) {
-        nextStep = {
-          type: "COMPLETED_ALL",
-          value: null,
-        };
+        nextStep = { type: "COMPLETED_ALL", value: null };
         progressPercent = 100;
       } else {
         nextStep = {
@@ -462,10 +477,9 @@ export const getUserTierProgressController = async (req, res, next) => {
         };
       }
     }
-    
 
     // 8️⃣ Pending rewards
-    const pendingRewards = await TierRewardLog.find({
+    const rawPendingRewards = await TierRewardLog.find({
       userId,
       adminId,
       platformId,
@@ -474,7 +488,7 @@ export const getUserTierProgressController = async (req, res, next) => {
     }).lean();
 
     // 9️⃣ Past rewards
-    const pastRewards = await TierRewardLog.find({
+    const rawPastRewards = await TierRewardLog.find({
       userId,
       adminId,
       platformId,
@@ -482,6 +496,25 @@ export const getUserTierProgressController = async (req, res, next) => {
     })
       .sort({ createdAt: -1 })
       .lean();
+
+    //  🔥 GROUPING HELPERS
+    const groupRewards = (list = []) => ({
+      scratch: list.filter((r) => r.rewardMethod === "SCRATCHCARD"),
+      spin: list.filter((r) => r.rewardMethod === "SPIN"),
+    });
+
+    // ⭐ UPCOMING REWARDS (from next level definition)
+    // const rawUpcomingRewards = nextLevel ? nextLevel.rewards : [];
+    const rawUpcomingRewards = currentLevel.rewards;
+
+    // Group upcoming also
+    const upcomingRewards = {
+      scratch: nextLevel?.rewardMethod === "SCRATCHCARD" ? rawUpcomingRewards : [],
+      spin: nextLevel?.rewardMethod === "SPIN" ? rawUpcomingRewards : [],
+    };
+
+    const pendingRewards = groupRewards(rawPendingRewards);
+    const pastRewards = groupRewards(rawPastRewards);
 
     // 🔐10️⃣ ENCRYPT RESPONSE
     const safePayload = clean({
@@ -493,15 +526,16 @@ export const getUserTierProgressController = async (req, res, next) => {
       },
 
       nextStep,
-
       levels: tier.levels,
       goals: goalData,
 
-      // ⭐ NEW: send full history (levels + goals + dates)
-      history: progress.progressHistory,
+      history: progress.progressHistory, // ⭐ include level history
 
+      // pendingRewards,
+      // upcomingRewards: nextLevel ? nextLevel.rewards : [],
+      // pastRewards,
       pendingRewards,
-      upcomingRewards: nextLevel ? nextLevel.rewards : [],
+      upcomingRewards,
       pastRewards,
 
       debug: {
@@ -522,7 +556,6 @@ export const getUserTierProgressController = async (req, res, next) => {
     next(err);
   }
 };
-
 
 // export const getUserTierProgressController = async (req, res, next) => {
 //   try {
