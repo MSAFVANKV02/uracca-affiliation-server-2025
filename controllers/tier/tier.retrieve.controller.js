@@ -109,7 +109,219 @@ export const getUserAffiliateCurrentTierController = async (req, res, next) => {
 };
 
 // ================================================================ ///
-// ================ GET USER AFFILIATE CURRENT TIER PROGRESS ========================= ///
+// ================ GET USER AFFILIATE CURRENT TIER PROGRESS ====== ///
+// ================================================================ ///
+
+// export const getUserTierProgressController = async (req, res, next) => {
+//   try {
+//     const userId = req.user._id;
+
+//     // 1️⃣ Validate user
+//     const user = await AffUser.findById(userId);
+//     if (!user) return res.status(404).json({ message: "User not found" });
+
+//     const adminId = user.workingOn;
+
+//     // 2️⃣ Get Admin & Platform
+//     const admin = await AffUser.findById(adminId);
+//     if (!admin) throw new Error("Admin not found");
+
+//     const platformId = admin.platformId;
+
+//     // 3️⃣ Get Progress Doc
+//     const progress = await UserTierProgress.findOne({
+//       userId,
+//       adminId,
+//       platformId,
+//     });
+
+//     if (!progress) {
+//       return res.status(203).json({
+//         success: false,
+//         data: null,
+//         message: "No tier progress found",
+//       });
+//     }
+
+//     // 4️⃣ Fetch Current Tier
+//     const tier = await Tier.findById(progress.currentTierId);
+//     if (!tier) throw new Error("Tier not found for progress");
+
+//     const currentLevel = tier.levels.find(
+//       (l) => l.levelNumber === progress.currentLevel
+//     );
+//     if (!currentLevel) throw new Error("Current level not found in tier");
+
+//     const goals = currentLevel.goals;
+
+//     // 5️⃣ Build structured goal progress list
+//     const goalData = goals.map((g) => {
+//       const gp = progress.goalProgress.find(
+//         (p) => p.goalId === g._id.toString()
+//       );
+
+//       return {
+//         goalId: g._id.toString(),
+//         goalType: g.goalType,
+//         target: g.target,
+//         progress: gp ? gp.progress : 0,
+//         isCompleted: gp ? gp.isCompleted : false,
+//       };
+//     });
+
+//     // 6️⃣ LEVEL PROGRESS = average completion of all goals in this level
+//     let totalPercent = 0;
+
+//     goals.forEach((g) => {
+//       const gp = progress.goalProgress.find(
+//         (p) => p.goalId === g._id.toString()
+//       );
+//       const current = gp ? gp.progress : 0;
+
+//       if (g.target > 0) {
+//         totalPercent += Math.min(current / g.target, 1);
+//       } else {
+//         totalPercent += 1; // Goal with no target counts as complete
+//       }
+//     });
+
+//     // const totalGoals = goals.length || 1;
+//     // const progressPercent = Math.round((totalPercent / totalGoals) * 100);
+
+//     // // 🔥7️⃣ Dynamic Next Step (Next Level or Next Tier)
+//     // const nextLevel = tier.levels.find(
+//     //   (lvl) => lvl.levelNumber === currentLevel.levelNumber + 1
+//     // );
+
+//     // let nextStep = {
+//     //   type: "",
+//     //   value: "",
+//     // };
+
+//     // if (nextLevel) {
+//     //   nextStep = {
+//     //     type: "NEXT_LEVEL",
+//     //     value: nextLevel.levelNumber, // e.g. Level 2
+//     //   };
+//     // } else {
+//     //   // No next level → check next tier
+//     //   const nextTier = await Tier.findOne({
+//     //     adminId,
+//     //     platformId,
+//     //     order: tier.order + 1,
+//     //     isActive: true,
+//     //   });
+
+//     //   if (nextTier) {
+//     //     nextStep = {
+//     //       type: "NEXT_TIER",
+//     //       value: nextTier.tierName, // e.g. Silver Tier
+//     //     };
+//     //   } else {
+//     //     nextStep = {
+//     //       type: "COMPLETED_ALL",
+//     //       value: null,
+//     //     };
+//     //   }
+//     // }
+//     // 6️⃣ LEVEL PROGRESS = average completion of all goals in this level
+//     const totalGoals = goals.length || 1;
+//     let progressPercent = Math.round((totalPercent / totalGoals) * 100);
+
+//     // 🔥7️⃣ Dynamic Next Step (Next Level or Next Tier)
+//     const nextLevel = tier.levels.find(
+//       (lvl) => lvl.levelNumber === currentLevel.levelNumber + 1
+//     );
+
+//     let nextStep = { type: "", value: "" };
+
+//     if (nextLevel) {
+//       nextStep = {
+//         type: "NEXT_LEVEL",
+//         value: nextLevel.levelNumber,
+//       };
+//     } else {
+//       const nextTier = await Tier.findOne({
+//         adminId,
+//         platformId,
+//         order: tier.order + 1,
+//         isActive: true,
+//       });
+
+//       if (nextTier) {
+//         nextStep = {
+//           type: "NEXT_TIER",
+//           value: nextTier.tierName,
+//         };
+//       } else {
+//         // ⭐ FINAL TIER + FINAL LEVEL → ALWAYS 100%
+//         nextStep = {
+//           type: "COMPLETED_ALL",
+//           value: null,
+//         };
+
+//         progressPercent = 100; // 👈 FORCE FULL PROGRESS
+//       }
+//     }
+
+//     // 8️⃣ Pending rewards
+//     const pendingRewards = await TierRewardLog.find({
+//       userId,
+//       adminId,
+//       platformId,
+//       isClaimed: false,
+//       action: "REWARD_EARNED",
+//     }).lean();
+
+//     // 9️⃣ Past rewards
+//     const pastRewards = await TierRewardLog.find({
+//       userId,
+//       adminId,
+//       platformId,
+//       isClaimed: true,
+//     })
+//       .sort({ createdAt: -1 })
+//       .lean();
+
+//     // 🔐10️⃣ ENCRYPT RESPONSE
+//     const safePayload = clean({
+//       currentStatus: {
+//         tierName: tier.tierName,
+//         level: currentLevel.levelNumber,
+//         currentTierLevel: tier.order, // IMPORTANT FOR ICONS
+//         progressPercent,
+//       },
+
+//       nextStep, // 🚀 tells UI what text to show
+
+//       levels: tier.levels,
+//       goals: goalData,
+
+//       pendingRewards,
+//       upcomingRewards: nextLevel ? nextLevel.rewards : [],
+//       pastRewards,
+
+//       debug: {
+//         currentTierId: progress.currentTierId,
+//         currentLevel: progress.currentLevel,
+//         goalProgress: progress.goalProgress,
+//       },
+//     });
+
+//     const encryptedData = encryptData(safePayload);
+
+//     return res.status(200).json({
+//       success: true,
+//       data: encryptedData,
+//     });
+//   } catch (err) {
+//     console.error("Error fetching tier progress:", err);
+//     next(err);
+//   }
+// };
+
+// ================================================================ ///
+// ================ GET USER AFFILIATE CURRENT TIER PROGRESS ====== ///
 // ================================================================ ///
 
 export const getUserTierProgressController = async (req, res, next) => {
@@ -120,102 +332,139 @@ export const getUserTierProgressController = async (req, res, next) => {
     const user = await AffUser.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    const adminId = user.workingOn; // admin this user belongs to
-    
+    const adminId = user.workingOn;
 
-    // 2️⃣ Find Admin (IMPORTANT: MUST BE AWAITED)
+    // 2️⃣ Get Admin & Platform
     const admin = await AffUser.findById(adminId);
-    if (!admin) {
-      // return res.status(404).json({ message: "Admin not found" });
-      throw new Error("Admin not found");
-    }
+    if (!admin) throw new Error("Admin not found");
 
     const platformId = admin.platformId;
 
-    // console.log("Platform ID:", platformId);
-    // console.log("Admin ID:", adminId);
-    // console.log(admin,'adminId===================');
-    // console.log(adminId,'adminId===================');
-    
-
-    // 2️⃣ Fetch progress doc
-    let progress = await UserTierProgress.findOne({
+    // 3️⃣ Get Progress Doc
+    const progress = await UserTierProgress.findOne({
       userId,
       adminId,
-      platformId
+      platformId,
     });
 
     if (!progress) {
       return res.status(203).json({
+        success: false,
+        data: null,
         message: "No tier progress found",
-        progress: null,
       });
     }
 
-    // 3️⃣ Load current tier
+    // 4️⃣ Fetch Current Tier
     const tier = await Tier.findById(progress.currentTierId);
-    if (!tier){
-      // return res.status(404).json({ message: "Tier not found for progress" });
-      throw new Error("Tier not found for progress");
-
-    }
+    if (!tier) throw new Error("Tier not found for progress");
 
     const currentLevel = tier.levels.find(
       (l) => l.levelNumber === progress.currentLevel
     );
+    if (!currentLevel) throw new Error("Current level not found in tier");
 
-    if (!currentLevel){
-      // return res
-      //   .status(404)
-      //   .json({ message: "Current level not found in tier" });
-      throw new Error("Current level not found in tier");
-    }
-   
-
-    // -----------------------------
-    // 4️⃣ Goal Completion Summary
-    // -----------------------------
     const goals = currentLevel.goals;
 
+    // 5️⃣ Build structured goal progress list
     const goalData = goals.map((g) => {
+      const gp = progress.goalProgress.find(
+        (p) => p.goalId === g._id.toString()
+      );
+
       return {
+        goalId: g._id.toString(),
         goalType: g.goalType,
         target: g.target,
-        progress:
-          g.goalType === "ORDERS"
-            ? progress.goalProgress.orders
-            : g.goalType === "CLICKS"
-            ? progress.goalProgress.clicks
-            : progress.goalProgress.sales,
+        progress: gp ? gp.progress : 0,
+        isCompleted: gp ? gp.isCompleted : false,
       };
     });
 
-    // overall progress (for top progress bar) – continuous based on each goal's percentage
-    let totalGoalProgress = 0;
+    // 6️⃣ LEVEL PROGRESS = average completion of all goals in this level
+    let totalPercent = 0;
 
     goals.forEach((g) => {
-      const current =
-        g.goalType === "ORDERS"
-          ? progress.goalProgress.orders
-          : g.goalType === "CLICKS"
-          ? progress.goalProgress.clicks
-          : progress.goalProgress.sales;
+      const gp = progress.goalProgress.find(
+        (p) => p.goalId === g._id.toString()
+      );
+      const current = gp ? gp.progress : 0;
 
-      // avoid division by zero, and cap at 100% per goal
       if (g.target > 0) {
-        totalGoalProgress += Math.min(current / g.target, 1); // 0 to 1
+        totalPercent += Math.min(current / g.target, 1);
       } else {
-        // if target is somehow 0, treat it as already complete
-        totalGoalProgress += 1;
+        totalPercent += 1; // Goal with no target counts as complete
       }
     });
 
-    const totalGoals = goals.length || 1; // avoid /0
-    const progressPercent = Math.round((totalGoalProgress / totalGoals) * 100);
+    const totalGoals = goals.length || 1;
+    let progressPercent = Math.round((totalPercent / totalGoals) * 100);
 
-    // -----------------------------
-    // 5️⃣ Pending CLAIMABLE Rewards
-    // -----------------------------
+    // 🔥7️⃣ Dynamic Next Step (Next Level or Next Tier)
+    const nextLevel = tier.levels.find(
+      (lvl) => lvl.levelNumber === currentLevel.levelNumber + 1
+    );
+
+    let nextStep = { type: "", value: "" };
+
+    const isLastLevel = !nextLevel;
+    const isLastTier = !(await Tier.findOne({
+      adminId,
+      platformId,
+      order: tier.order + 1,
+      isActive: true,
+    }));
+    
+    const allGoalsCompleted = goalData.every((g) => g.isCompleted);
+    
+    // ---------------------------
+    // CASE 1: Next level exists
+    // ---------------------------
+    if (!isLastLevel) {
+      nextStep = {
+        type: "NEXT_LEVEL",
+        value: nextLevel.levelNumber,
+      };
+    }
+    
+    // ---------------------------
+    // CASE 2: Last level but NOT last tier
+    // ---------------------------
+    else if (!isLastTier) {
+      const nextTier = await Tier.findOne({
+        adminId,
+        platformId,
+        order: tier.order + 1,
+        isActive: true,
+      });
+    
+      nextStep = {
+        type: "NEXT_TIER",
+        value: nextTier.tierName,
+      };
+    }
+    
+    // ---------------------------
+    // CASE 3: Last tier + last level
+    // ONLY COMPLETED_ALL if goalsCompleted = true
+    // ---------------------------
+    else {
+      if (allGoalsCompleted) {
+        nextStep = {
+          type: "COMPLETED_ALL",
+          value: null,
+        };
+        progressPercent = 100;
+      } else {
+        nextStep = {
+          type: "STAY_ON_LAST_LEVEL",
+          value: currentLevel.levelNumber,
+        };
+      }
+    }
+    
+
+    // 8️⃣ Pending rewards
     const pendingRewards = await TierRewardLog.find({
       userId,
       adminId,
@@ -224,18 +473,7 @@ export const getUserTierProgressController = async (req, res, next) => {
       action: "REWARD_EARNED",
     }).lean();
 
-    // -----------------------------
-    // 6️⃣ Upcoming rewards (next level)
-    // -----------------------------
-    const nextLevel = tier.levels.find(
-      (lvl) => lvl.levelNumber === currentLevel.levelNumber + 1 && lvl.isActive
-    );
-
-    const upcomingRewards = nextLevel ? nextLevel.rewards : [];
-
-    // -----------------------------
-    // 7️⃣ Past Rewards (Processing / Paid)
-    // -----------------------------
+    // 9️⃣ Past rewards
     const pastRewards = await TierRewardLog.find({
       userId,
       adminId,
@@ -245,48 +483,25 @@ export const getUserTierProgressController = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .lean();
 
-      if(!pastRewards){
-        throw new Error("No past rewards found");
-      }
-
-    // -----------------------------
-    // 8️⃣ SEND RESPONSE
-    // -----------------------------
-    // return res.status(200).json({
-    //   success: true,
-
-    //   currentStatus: {
-    //     tierName: tier.tierName,
-    //     level: currentLevel.levelNumber,
-    //     progressPercent,
-    //   },
-
-    //   goals: goalData,
-
-    //   pendingRewards,
-    //   upcomingRewards,
-    //   pastRewards,
-
-    //   debug: {
-    //     currentTierId: progress.currentTierId,
-    //     currentLevel: progress.currentLevel,
-    //     goalProgress: progress.goalProgress,
-    //   },
-    // });
-    // -----------------------------
-    // 🔐  ENCRYPT EVERYTHING
-    // -----------------------------
+    // 🔐10️⃣ ENCRYPT RESPONSE
     const safePayload = clean({
       currentStatus: {
         tierName: tier.tierName,
         level: currentLevel.levelNumber,
-        currentTierLevel:tier.order,
+        currentTierLevel: tier.order,
         progressPercent,
       },
 
+      nextStep,
+
+      levels: tier.levels,
       goals: goalData,
+
+      // ⭐ NEW: send full history (levels + goals + dates)
+      history: progress.progressHistory,
+
       pendingRewards,
-      upcomingRewards,
+      upcomingRewards: nextLevel ? nextLevel.rewards : [],
       pastRewards,
 
       debug: {
@@ -295,11 +510,9 @@ export const getUserTierProgressController = async (req, res, next) => {
         goalProgress: progress.goalProgress,
       },
     });
+
     const encryptedData = encryptData(safePayload);
 
-    // -----------------------------
-    // 8️⃣ SEND RESPONSE
-    // -----------------------------
     return res.status(200).json({
       success: true,
       data: encryptedData,
@@ -309,3 +522,199 @@ export const getUserTierProgressController = async (req, res, next) => {
     next(err);
   }
 };
+
+
+// export const getUserTierProgressController = async (req, res, next) => {
+//   try {
+//     const userId = req.user._id;
+
+//     // 1️⃣ Validate user
+//     const user = await AffUser.findById(userId);
+//     if (!user) return res.status(404).json({ message: "User not found" });
+
+//     const adminId = user.workingOn; // admin this user belongs to
+
+//     // 2️⃣ Find Admin (IMPORTANT: MUST BE AWAITED)
+//     const admin = await AffUser.findById(adminId);
+//     if (!admin) {
+//       // return res.status(404).json({ message: "Admin not found" });
+//       throw new Error("Admin not found");
+//     }
+
+//     const platformId = admin.platformId;
+
+//     // console.log("Platform ID:", platformId);
+//     // console.log("Admin ID:", adminId);
+//     // console.log(admin,'adminId===================');
+//     // console.log(adminId,'adminId===================');
+
+//     // 2️⃣ Fetch progress doc
+//     let progress = await UserTierProgress.findOne({
+//       userId,
+//       adminId,
+//       platformId,
+//     });
+
+//     if (!progress) {
+//       return res.status(203).json({
+//         message: "No tier progress found",
+//         progress: null,
+//       });
+//     }
+
+//     // 3️⃣ Load current tier
+//     const tier = await Tier.findById(progress.currentTierId);
+//     if (!tier) {
+//       // return res.status(404).json({ message: "Tier not found for progress" });
+//       throw new Error("Tier not found for progress");
+//     }
+
+//     const currentLevel = tier.levels.find(
+//       (l) => l.levelNumber === progress.currentLevel
+//     );
+
+//     if (!currentLevel) {
+//       // return res
+//       //   .status(404)
+//       //   .json({ message: "Current level not found in tier" });
+//       throw new Error("Current level not found in tier");
+//     }
+
+//     // -----------------------------
+//     // 4️⃣ Goal Completion Summary
+//     // -----------------------------
+//     const goals = currentLevel.goals;
+
+//     const goalData = goals.map((g) => {
+//       return {
+//         goalType: g.goalType,
+//         target: g.target,
+//         progress:
+//           g.goalType === "ORDERS"
+//             ? progress.goalProgress.orders
+//             : g.goalType === "CLICKS"
+//             ? progress.goalProgress.clicks
+//             : progress.goalProgress.sales,
+//       };
+//     });
+
+//     // overall progress (for top progress bar) – continuous based on each goal's percentage
+//     let totalGoalProgress = 0;
+
+//     goals.forEach((g) => {
+//       const current =
+//         g.goalType === "ORDERS"
+//           ? progress.goalProgress.orders
+//           : g.goalType === "CLICKS"
+//           ? progress.goalProgress.clicks
+//           : progress.goalProgress.sales;
+
+//       // avoid division by zero, and cap at 100% per goal
+//       if (g.target > 0) {
+//         totalGoalProgress += Math.min(current / g.target, 1); // 0 to 1
+//       } else {
+//         // if target is somehow 0, treat it as already complete
+//         totalGoalProgress += 1;
+//       }
+//     });
+
+//     const totalGoals = goals.length || 1; // avoid /0
+//     const progressPercent = Math.round((totalGoalProgress / totalGoals) * 100);
+
+//     // -----------------------------
+//     // 5️⃣ Pending CLAIMABLE Rewards
+//     // -----------------------------
+//     const pendingRewards = await TierRewardLog.find({
+//       userId,
+//       adminId,
+//       platformId,
+//       isClaimed: false,
+//       action: "REWARD_EARNED",
+//     }).lean();
+
+//     // -----------------------------
+//     // 6️⃣ Upcoming rewards (next level)
+//     // -----------------------------
+//     const nextLevel = tier.levels.find(
+//       (lvl) => lvl.levelNumber === currentLevel.levelNumber + 1 && lvl.isActive
+//     );
+
+//     const upcomingRewards = nextLevel ? nextLevel.rewards : [];
+
+//     // -----------------------------
+//     // 7️⃣ Past Rewards (Processing / Paid)
+//     // -----------------------------
+//     const pastRewards = await TierRewardLog.find({
+//       userId,
+//       adminId,
+//       platformId,
+//       isClaimed: true,
+//     })
+//       .sort({ createdAt: -1 })
+//       .lean();
+
+//     if (!pastRewards) {
+//       throw new Error("No past rewards found");
+//     }
+
+//     // -----------------------------
+//     // 8️⃣ SEND RESPONSE
+//     // -----------------------------
+//     // return res.status(200).json({
+//     //   success: true,
+
+//     //   currentStatus: {
+//     //     tierName: tier.tierName,
+//     //     level: currentLevel.levelNumber,
+//     //     progressPercent,
+//     //   },
+
+//     //   goals: goalData,
+
+//     //   pendingRewards,
+//     //   upcomingRewards,
+//     //   pastRewards,
+
+//     //   debug: {
+//     //     currentTierId: progress.currentTierId,
+//     //     currentLevel: progress.currentLevel,
+//     //     goalProgress: progress.goalProgress,
+//     //   },
+//     // });
+//     // -----------------------------
+//     // 🔐  ENCRYPT EVERYTHING
+//     // -----------------------------
+//     const safePayload = clean({
+//       currentStatus: {
+//         tierName: tier.tierName,
+//         level: currentLevel.levelNumber,
+//         currentTierLevel: tier.order,
+//         progressPercent,
+//       },
+//       levels: tier.levels,
+
+//       goals: goalData,
+//       pendingRewards,
+//       upcomingRewards,
+//       pastRewards,
+
+//       debug: {
+//         currentTierId: progress.currentTierId,
+//         currentLevel: progress.currentLevel,
+//         goalProgress: progress.goalProgress,
+//       },
+//     });
+//     const encryptedData = encryptData(safePayload);
+
+//     // -----------------------------
+//     // 8️⃣ SEND RESPONSE
+//     // -----------------------------
+//     return res.status(200).json({
+//       success: true,
+//       data: encryptedData,
+//     });
+//   } catch (err) {
+//     console.error("Error fetching tier progress:", err);
+//     next(err);
+//   }
+// };
