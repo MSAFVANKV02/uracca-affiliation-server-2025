@@ -537,6 +537,7 @@ export const getUserTierProgressController = async (req, res, next) => {
       pendingRewards,
       upcomingRewards,
       pastRewards,
+      redeemedRewards: rawPendingRewards, // future use
 
       debug: {
         currentTierId: progress.currentTierId,
