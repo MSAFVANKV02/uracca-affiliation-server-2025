@@ -12,6 +12,7 @@ export const UserActionEnum = Object.freeze({
   ACCOUNT_DELETION: "ACCOUNT-DELETION",
   USER_REFER: "USER-REFER",
   COMMISSION_PAYOUT: "COMMISSION-PAYOUT",
+  REWARD_CLAIM: "REWARD_CLAIM",
 });
 
 export const UserCategoryEnum = Object.freeze({
@@ -22,6 +23,7 @@ export const UserCategoryEnum = Object.freeze({
   ADMIN: "ADMIN",
   GENERAL: "GENERAL",
   EARNINGS: "EARNINGS",
+  REWARD: "REWARD",
 
 });
 

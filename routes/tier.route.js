@@ -6,7 +6,8 @@ import {
   deleteAffiliateTierController,
   toggleAffiliateTierStatusController,
 } from "../controllers/tier/tier.controller.js";
-import { getAllAffiliateTiersController, getAllAffiliateTiersWithIdController, getUserTierProgressController } from "../controllers/tier/tier.retrieve.controller.js";
+import { getAllAffiliateTiersController, getAllAffiliateTiersWithIdController, getRewardLogByIdController, getUserTierProgressController } from "../controllers/tier/tier.retrieve.controller.js";
+import { claimUserRewardController } from "../controllers/tier/tier.rewards.controller.js";
 const router = express.Router();
 
 // Create Tier
@@ -35,6 +36,8 @@ router.patch(
 router.get("/all", authenticateAdmin, getAllAffiliateTiersController);
 router.get("/:tierId", authenticateAdmin, getAllAffiliateTiersWithIdController);
 router.get("/user/my-tier", authenticateUser, getUserTierProgressController);
+router.get("/user/my-rewards/:id", authenticateUser, getRewardLogByIdController);
+router.put("/user/claim/reward", authenticateUser, claimUserRewardController);
 
 
 
