@@ -7,9 +7,12 @@ const levelRewardSchema = new mongoose.Schema({
   rewardType: { type: String },
   label: { type: String,  },
   valueType: { type: String },
-  value: { type: String, required: true },
+  // value: { type: String, required: true },
+  value: { type: Number, required: true },
+
   color: { type: String,  },
   textColor: { type: String,  },
+  image: { type: String,  },
   isActive: { type: Boolean, default: true },
 });
 

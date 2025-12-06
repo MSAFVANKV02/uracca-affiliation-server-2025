@@ -482,6 +482,7 @@ async grantRewards(level, tier) {
         rewardValue: randomReward.value,
         rewardLabel: randomReward.label,
         valueType: randomReward.valueType,
+        image: randomReward.image,
         action: "REWARD_EARNED",
       });
     }
@@ -503,6 +504,7 @@ async grantRewards(level, tier) {
       rewardMethod: level.rewardMethod,
       rewardValue: r.value,
       rewardLabel: r.label,
+      image: r.image,
       valueType: r.valueType,
       action: "REWARD_EARNED",
     });

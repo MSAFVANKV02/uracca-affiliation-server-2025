@@ -11,9 +11,12 @@ const tierRewardLogSchema = new mongoose.Schema(
 
     rewardType: { type: String },       // CASH, COINS, SPIN, SCRATCHCARD
     rewardMethod: { type: String },     // SPIN or SCRATCHCARD
-    rewardValue: { type: String },      
+    // rewardValue: { type: String },      
+    rewardValue: { type: Number, required: true },        
+
     valueType: { type: String },        
     rewardLabel: { type: String },
+    image: { type: String,  },
 
     status: {
       type: String,

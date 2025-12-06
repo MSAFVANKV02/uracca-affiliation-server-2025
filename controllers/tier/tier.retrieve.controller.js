@@ -406,6 +406,26 @@ export const getUserTierProgressController = async (req, res, next) => {
     );
     if (!currentLevel) throw new Error("Current level not found in tier");
 
+    // ⭐⭐⭐ IMPORTANT FIX — REBUILD goalProgress IF LEVEL CHANGED ⭐⭐⭐
+    if (
+      !progress.goalProgress ||
+      progress.goalProgress.length !== currentLevel.goals.length ||
+      !progress.goalProgress.every((pg) =>
+        currentLevel.goals.some((g) => g._id.toString() === pg.goalId)
+      )
+    ) {
+      progress.goalProgress = currentLevel.goals.map((g) => ({
+        goalId: g._id.toString(),
+        goalType: g.goalType,
+        target: g.target,
+        progress: 0,
+        isCompleted: false,
+      }));
+
+      await progress.save();
+    }
+    // ⭐⭐⭐ END FIX ⭐⭐⭐
+
     const goals = currentLevel.goals;
 
     // 5️⃣ Build structured goal progress list
@@ -509,7 +529,8 @@ export const getUserTierProgressController = async (req, res, next) => {
 
     // Group upcoming also
     const upcomingRewards = {
-      scratch: nextLevel?.rewardMethod === "SCRATCHCARD" ? rawUpcomingRewards : [],
+      scratch:
+        nextLevel?.rewardMethod === "SCRATCHCARD" ? rawUpcomingRewards : [],
       spin: nextLevel?.rewardMethod === "SPIN" ? rawUpcomingRewards : [],
     };
 

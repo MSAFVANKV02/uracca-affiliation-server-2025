@@ -67,8 +67,8 @@ export const validateTierLevels = (levels) => {
       //   throw new Error(`${rewardLabel}: label is required`);
       // }
 
-      if (!reward.value || typeof reward.value !== "string") {
-        throw new Error(`${rewardLabel}: value is required and must be a string`);
+      if (!reward.value || typeof reward.value !== "number") {
+        throw new Error(`${rewardLabel}: value is required and must be a number`);
       }
 
       // if (!reward.color || typeof reward.color !== "string") {
