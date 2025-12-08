@@ -74,7 +74,11 @@ const collectedRewardSchema = new mongoose.Schema({
   valueType: { type: String },
   // value: { type: String, required: true },
   value: { type: Number, required: true },
-
+  status: {
+    type: String,
+    enum: ["PENDING", "PROCESSING", "PAID"],
+    default: "PENDING",
+  },
   color: { type: String },
   textColor: { type: String },
   image: { type: String },

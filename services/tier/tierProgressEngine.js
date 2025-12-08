@@ -298,9 +298,9 @@ export default class TierProgressEngine {
       // const allRewards = level.rewards; // NO isActive filter
       const activeRewards = level.rewards.filter((r) => r.isActive === true);
 
-      if (activeRewards``.length > 0) {
+      if (activeRewards.length > 0) {
         const randomReward =
-          activeRewards[Math.floor(Math.random() * allRewards.length)];
+          activeRewards[Math.floor(Math.random() * activeRewards.length)];
 
         await TierRewardLog.create({
           adminId: this.adminId,
@@ -310,7 +310,7 @@ export default class TierProgressEngine {
           levelNumber: level.levelNumber,
           levelId: level._id.toString(),
           rewardMethod: "SCRATCHCARD",
-          spinCount: r.spinCount,
+          spinCount: level.spinCount,
           rewards: [
             {
               levelRewardId: randomReward._id.toString(),

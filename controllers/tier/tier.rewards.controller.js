@@ -92,6 +92,9 @@ export const claimUserRewardController = async (req, res, next) => {
   }
 };
 
+
+
+
 // export const claimUserRewardController = async (req, res, next) => {
 //   try {
 //     const { rewardLogId, rewardId } = req.body;

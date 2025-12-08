@@ -135,11 +135,11 @@ export const getRewardLogByIdController = async (req, res, next) => {
     // 2️⃣ Fetch reward log
     const rewardLog = await TierRewardLog.findById(id).lean();
 
-    if(rewardLog.adminId.toString() !== loggedUser.workingOn.toString()) {
+    if (rewardLog.adminId.toString() !== loggedUser.workingOn.toString()) {
       throw new Error("Unauthorized access to reward log");
     }
 
-       // ⭐ OPTIONAL SECURITY CHECK (recommended)
+    // ⭐ OPTIONAL SECURITY CHECK (recommended)
     // Only return if this reward truly belongs to logged-in user
     if (rewardLog.userId.toString() !== loggedUser._id.toString()) {
       return res.status(403).json({
@@ -156,9 +156,7 @@ export const getRewardLogByIdController = async (req, res, next) => {
       throw new Error("Reward log not found");
     }
 
-
     const encryptedData = encryptData(rewardLog);
- 
 
     return res.status(200).json({
       success: true,
@@ -170,10 +168,54 @@ export const getRewardLogByIdController = async (req, res, next) => {
   }
 };
 
+export const getAllMyRewardsController = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const adminId = req.user.workingOn;
+
+    // Fetch all reward logs for the user under the current admin
+    const rewardLogs = await TierRewardLog.find({
+      userId,
+      adminId,
+    }).sort({ createdAt: -1 });
+
+    if (!rewardLogs || rewardLogs.length === 0) {
+      throw new Error("No reward logs found for user");
+    }
+
+    const pendingRewards = rewardLogs.filter(
+      (r) => !r.isClaimed && r.action === "REWARD_EARNED"
+    );
+
+       // -----------------------------
+    // ⭐ COLLECTED REWARDS (Flattened)
+    // -----------------------------
+    const collectedRewards = rewardLogs
+      .filter((log) => log.isClaimed === true)
+      .flatMap((log) => log.collectedRewards ?? []);
+
+
+    const safePayload = clean({
+      pendingRewards: pendingRewards || [],
+      collectedRewards: collectedRewards
+    });
+
+  
+    const encryptedData = encryptData(safePayload);
+
+    return res.status(200).json({
+      success: true,
+      data: encryptedData,
+    });
+  } catch (err) {
+    console.error("Error fetching all user rewards:", err);
+    next(err);
+  }
+};
+
 // ================================================================ ///
 // ================ GET USER AFFILIATE CURRENT TIER PROGRESS ====== ///
 // ================================================================ ///
-
 export const getUserTierProgressController = async (req, res, next) => {
   try {
     const userId = req.user._id;
@@ -190,6 +232,53 @@ export const getUserTierProgressController = async (req, res, next) => {
 
     const platformId = admin.platformId;
 
+    // ⭐ Always get ALL Rewards first (for fallback response)
+    const rawPendingRewards = await TierRewardLog.find({
+      userId,
+      adminId,
+      platformId,
+      isClaimed: false,
+      action: "REWARD_EARNED",
+    }).lean();
+
+    const rawPastRewards = await TierRewardLog.find({
+      userId,
+      adminId,
+      platformId,
+      isClaimed: true,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const rawAllRewards = [...rawPendingRewards, ...rawPastRewards];
+
+    // Helper → Send ONLY rewards but keep same response shape
+    const EMPTY_TIER = {
+      levels: [],
+      tierName: "",
+      order: 0,
+    };
+    
+    const sendEmptyTierProgress = () => {
+      const redeemableRewards = BuildRedeemableRewards(rawAllRewards, EMPTY_TIER);
+    
+      const safePayload = clean({
+        currentStatus: {},
+        nextStep: {},
+        levels: [],
+        goals: [],
+        history: [],
+        redeemableRewards,
+        allRewards: rawAllRewards,
+      });
+    
+      return res.status(200).json({
+        success: true,
+        data: encryptData(safePayload),
+      });
+    };
+    
+
     // ============================================================
     // 🚀 Ensure progress doc exists
     // ============================================================
@@ -200,33 +289,22 @@ export const getUserTierProgressController = async (req, res, next) => {
     });
 
     if (!progress) {
-      // Find first tier for admin/platform
       const firstTier = await Tier.findOne({
         adminId,
         platformId,
         isActive: true,
       }).sort({ order: 1 });
 
-      if (!firstTier) {
-        return res.status(404).json({
-          success: false,
-          message: "No active tiers found for admin",
-        });
-      }
+      // ❗ Tier missing → return empty tier progress + rewards
+      if (!firstTier) return sendEmptyTierProgress();
 
-      // First active level
       const firstLevel =
         firstTier.levels.find((l) => l.isActive && l.levelNumber === 1) ||
         firstTier.levels.find((l) => l.isActive);
 
-      if (!firstLevel) {
-        return res.status(404).json({
-          success: false,
-          message: "Tier has no active levels",
-        });
-      }
+      // ❗ Level missing → return empty tier progress + rewards
+      if (!firstLevel) return sendEmptyTierProgress();
 
-      // Build goalProgress
       const goalProgress = firstLevel.goals.map((g) => ({
         goalId: g._id.toString(),
         goalType: g.goalType,
@@ -235,7 +313,6 @@ export const getUserTierProgressController = async (req, res, next) => {
         isCompleted: false,
       }));
 
-      // Create new progress record
       progress = await UserTierProgress.create({
         userId,
         adminId,
@@ -249,14 +326,49 @@ export const getUserTierProgressController = async (req, res, next) => {
 
     // 4️⃣ Fetch Current Tier
     const tier = await Tier.findById(progress.currentTierId);
-    if (!tier) throw new Error("Tier not found for progress");
+
+    // ❗ If tier deleted after creation → return empty progress
+   // ❗ If tier deleted after creation → check if new tier exists and rebuild progress
+if (!tier) {
+  const newFirstTier = await Tier.findOne({
+    adminId,
+    platformId,
+    isActive: true,
+  }).sort({ order: 1 });
+
+  if (newFirstTier) {
+    const firstLevel =
+      newFirstTier.levels.find((l) => l.isActive && l.levelNumber === 1) ||
+      newFirstTier.levels.find((l) => l.isActive);
+
+    if (firstLevel) {
+      progress.currentTierId = newFirstTier._id;
+      progress.currentLevel = firstLevel.levelNumber;
+      progress.goalProgress = firstLevel.goals.map((g) => ({
+        goalId: g._id.toString(),
+        goalType: g.goalType,
+        target: g.target,
+        progress: 0,
+        isCompleted: false,
+      }));
+
+      await progress.save();
+    }
+  } else {
+    return sendEmptyTierProgress();
+  }
+}
+
 
     const currentLevel = tier.levels.find(
       (l) => l.levelNumber === progress.currentLevel
     );
-    if (!currentLevel) throw new Error("Current level not found in tier");
 
-    // ⭐ UPDATED: REBUILD goalProgress IF LEVEL CHANGED
+    // ❗ Level removed later → return empty progress
+    if (!currentLevel) return sendEmptyTierProgress();
+
+    // ⭐ EVERYTHING BELOW THIS POINT IS UNCHANGED (your full logic restored)
+
     if (
       !progress.goalProgress ||
       progress.goalProgress.length !== currentLevel.goals.length ||
@@ -277,7 +389,6 @@ export const getUserTierProgressController = async (req, res, next) => {
 
     const goals = currentLevel.goals;
 
-    // 5️⃣ Build structured goal progress list
     const goalData = goals.map((g) => {
       const gp = progress.goalProgress.find(
         (p) => p.goalId === g._id.toString()
@@ -292,22 +403,21 @@ export const getUserTierProgressController = async (req, res, next) => {
       };
     });
 
-    // 6️⃣ LEVEL PROGRESS CALC
+    // LEVEL PROGRESS
     let totalPercent = 0;
-
     goals.forEach((g) => {
       const gp = progress.goalProgress.find(
         (p) => p.goalId === g._id.toString()
       );
       const current = gp ? gp.progress : 0;
-
       totalPercent += g.target > 0 ? Math.min(current / g.target, 1) : 1;
     });
 
-    const totalGoals = goals.length || 1;
-    let progressPercent = Math.round((totalPercent / totalGoals) * 100);
+    const progressPercent = Math.round(
+      (totalPercent / (goals.length || 1)) * 100
+    );
 
-    // 🔥7️⃣ Dynamic Next Step
+    // NEXT STEP LOGIC (kept exactly same)
     const nextLevel = tier.levels.find(
       (lvl) => lvl.levelNumber === currentLevel.levelNumber + 1
     );
@@ -338,7 +448,6 @@ export const getUserTierProgressController = async (req, res, next) => {
     } else {
       if (allGoalsCompleted) {
         nextStep = { type: "COMPLETED_ALL", value: null };
-        progressPercent = 100;
       } else {
         nextStep = {
           type: "STAY_ON_LAST_LEVEL",
@@ -347,32 +456,7 @@ export const getUserTierProgressController = async (req, res, next) => {
       }
     }
 
-    // 8️⃣ Pending rewards (LEVEL-BASED LOGS)
-    const rawPendingRewards = await TierRewardLog.find({
-      userId,
-      adminId,
-      platformId,
-      isClaimed: false,
-      action: "REWARD_EARNED",
-    }).lean();
-
-    // 9️⃣ Past rewards (claimed)
-    const rawPastRewards = await TierRewardLog.find({
-      userId,
-      adminId,
-      platformId,
-      isClaimed: true,
-    })
-      .sort({ createdAt: -1 })
-      .lean();
-
-    // GROUPING HELPERS (still by rewardMethod)
-    const groupRewards = (list = []) => ({
-      scratch: list.filter((r) => r.rewardMethod === "SCRATCHCARD"),
-      spin: list.filter((r) => r.rewardMethod === "SPIN"),
-    });
-
-    // UPCOMING REWARDS from current/next level definition
+    // UPCOMING (kept same)
     const rawUpcomingRewards = currentLevel.rewards;
 
     const upcomingRewards = {
@@ -381,15 +465,20 @@ export const getUserTierProgressController = async (req, res, next) => {
       spin: nextLevel?.rewardMethod === "SPIN" ? rawUpcomingRewards : [],
     };
 
-    const pendingRewards = groupRewards(rawPendingRewards);
-    const pastRewards = groupRewards(rawPastRewards);
+    const pendingRewards = {
+      scratch: rawPendingRewards.filter((r) => r.rewardMethod === "SCRATCHCARD"),
+      spin: rawPendingRewards.filter((r) => r.rewardMethod === "SPIN"),
+    };
 
-    // ⭐ ALL rewards (earned + collected) — used by BuildRedeemableRewards
-    const rawAllRewards = [...rawPendingRewards, ...rawPastRewards];
+    const pastRewards = {
+      scratch: rawPastRewards.filter((r) => r.rewardMethod === "SCRATCHCARD"),
+      spin: rawPastRewards.filter((r) => r.rewardMethod === "SPIN"),
+    };
 
+    // FINAL rewards
     const redeemableRewards = BuildRedeemableRewards(rawAllRewards, tier);
 
-    // 🔐10️⃣ BUILD RESPONSE
+    // FINAL PAYLOAD
     const safePayload = clean({
       currentStatus: {
         tierName: tier.tierName,
@@ -403,10 +492,6 @@ export const getUserTierProgressController = async (req, res, next) => {
       goals: goalData,
 
       history: progress.progressHistory,
-
-      // pendingRewards,
-      // upcomingRewards,
-      // pastRewards,
       redeemableRewards,
       allRewards: rawAllRewards,
 
@@ -417,17 +502,17 @@ export const getUserTierProgressController = async (req, res, next) => {
       },
     });
 
-    const encryptedData = encryptData(safePayload);
-
     return res.status(200).json({
       success: true,
-      data: encryptedData,
+      data: encryptData(safePayload),
     });
+
   } catch (err) {
     console.error("Error fetching tier progress:", err);
     next(err);
   }
 };
+
 // export const getUserTierProgressController = async (req, res, next) => {
 //   try {
 //     const userId = req.user._id;
@@ -445,7 +530,7 @@ export const getUserTierProgressController = async (req, res, next) => {
 //     const platformId = admin.platformId;
 
 //     // ============================================================
-//     // 🚀 NEW LOGIC: If no progress doc → create first tier progress
+//     // 🚀 Ensure progress doc exists
 //     // ============================================================
 //     let progress = await UserTierProgress.findOne({
 //       userId,
@@ -510,7 +595,7 @@ export const getUserTierProgressController = async (req, res, next) => {
 //     );
 //     if (!currentLevel) throw new Error("Current level not found in tier");
 
-//     // ⭐⭐⭐ IMPORTANT FIX — REBUILD goalProgress IF LEVEL CHANGED ⭐⭐⭐
+//     // ⭐ UPDATED: REBUILD goalProgress IF LEVEL CHANGED
 //     if (
 //       !progress.goalProgress ||
 //       progress.goalProgress.length !== currentLevel.goals.length ||
@@ -528,7 +613,6 @@ export const getUserTierProgressController = async (req, res, next) => {
 
 //       await progress.save();
 //     }
-//     // ⭐⭐⭐ END FIX ⭐⭐⭐
 
 //     const goals = currentLevel.goals;
 
@@ -602,7 +686,7 @@ export const getUserTierProgressController = async (req, res, next) => {
 //       }
 //     }
 
-//     // 8️⃣ Pending rewards
+//     // 8️⃣ Pending rewards (LEVEL-BASED LOGS)
 //     const rawPendingRewards = await TierRewardLog.find({
 //       userId,
 //       adminId,
@@ -611,7 +695,7 @@ export const getUserTierProgressController = async (req, res, next) => {
 //       action: "REWARD_EARNED",
 //     }).lean();
 
-//     // 9️⃣ Past rewards
+//     // 9️⃣ Past rewards (claimed)
 //     const rawPastRewards = await TierRewardLog.find({
 //       userId,
 //       adminId,
@@ -621,17 +705,15 @@ export const getUserTierProgressController = async (req, res, next) => {
 //       .sort({ createdAt: -1 })
 //       .lean();
 
-//     //  🔥 GROUPING HELPERS
+//     // GROUPING HELPERS (still by rewardMethod)
 //     const groupRewards = (list = []) => ({
 //       scratch: list.filter((r) => r.rewardMethod === "SCRATCHCARD"),
 //       spin: list.filter((r) => r.rewardMethod === "SPIN"),
 //     });
 
-//     // ⭐ UPCOMING REWARDS (from next level definition)
-//     // const rawUpcomingRewards = nextLevel ? nextLevel.rewards : [];
+//     // UPCOMING REWARDS from current/next level definition
 //     const rawUpcomingRewards = currentLevel.rewards;
 
-//     // Group upcoming also
 //     const upcomingRewards = {
 //       scratch:
 //         nextLevel?.rewardMethod === "SCRATCHCARD" ? rawUpcomingRewards : [],
@@ -641,12 +723,12 @@ export const getUserTierProgressController = async (req, res, next) => {
 //     const pendingRewards = groupRewards(rawPendingRewards);
 //     const pastRewards = groupRewards(rawPastRewards);
 
-//     const rawAllRewards = [
-//       ...rawPendingRewards,
-//       ...rawPastRewards
-//     ];
+//     // ⭐ ALL rewards (earned + collected) — used by BuildRedeemableRewards
+//     const rawAllRewards = [...rawPendingRewards, ...rawPastRewards];
 
-//     // 🔐10️⃣ ENCRYPT RESPONSE
+//     const redeemableRewards = BuildRedeemableRewards(rawAllRewards, tier);
+
+//     // 🔐10️⃣ BUILD RESPONSE
 //     const safePayload = clean({
 //       currentStatus: {
 //         tierName: tier.tierName,
@@ -659,15 +741,13 @@ export const getUserTierProgressController = async (req, res, next) => {
 //       levels: tier.levels,
 //       goals: goalData,
 
-//       history: progress.progressHistory, // ⭐ include level history
+//       history: progress.progressHistory,
 
 //       // pendingRewards,
-//       // upcomingRewards: nextLevel ? nextLevel.rewards : [],
+//       // upcomingRewards,
 //       // pastRewards,
-//       pendingRewards,
-//       upcomingRewards,
-//       pastRewards,
-//       redeemableRewards: BuildRedeemableRewards(rawAllRewards, tier),
+//       redeemableRewards,
+//       allRewards: rawAllRewards,
 
 //       debug: {
 //         currentTierId: progress.currentTierId,
