@@ -46,16 +46,23 @@ export const claimUserRewardController = async (req, res, next) => {
       collectedAt: new Date(),
     });
 
+    // console.log(log.spinCount, "remaining spins before collection");
+
+
     // 5️⃣ UPDATE global log state
     log.spinCount = log.spinCount - 1;
-    log.claimedAt = new Date();
-    log.collectedAt = new Date();
-    log.action = "REWARD_COLLECTED";
+
+
+    // console.log(log.spinCount, "remaining spins after collection");
+    
 
     // When all spins are used → close the log permanently
     if (log.spinCount <= 0) {
       log.isClaimed = true;
       log.isCollected = true;
+      log.claimedAt = new Date();
+      log.collectedAt = new Date();
+      log.action = "REWARD_COLLECTED";
     }
 
     await log.save();
@@ -63,7 +70,7 @@ export const claimUserRewardController = async (req, res, next) => {
     // 6️⃣ Create Notification
     await createNotification({
       userId,
-      action: UserActionEnum.REWARD_COLLECT,
+      action: UserActionEnum.REWARD_CLAIM,
       recipientType: "user",
       category: UserCategoryEnum.REWARD,
       message: `You collected reward: ${reward.rewardLabel}`,

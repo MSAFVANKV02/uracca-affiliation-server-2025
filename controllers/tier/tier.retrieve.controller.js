@@ -7,6 +7,7 @@ import { Tier } from "../../models/tier-models/tierSystemSchema.js";
 import { UserTierProgress } from "../../models/tier-models/tierUserProgressSchema.js";
 import { BuildRedeemableRewards } from "../../services/tier/buildRewards.js";
 import { encryptData } from "../../utils/cript-data.js";
+import { NotFoundError } from "../../utils/errors.js";
 
 // ================================================================ ///
 // ================ GET ALL AFFILIATE TIER ========================= ///
@@ -180,27 +181,25 @@ export const getAllMyRewardsController = async (req, res, next) => {
     }).sort({ createdAt: -1 });
 
     if (!rewardLogs || rewardLogs.length === 0) {
-      throw new Error("No reward logs found for user");
+      throw new NotFoundError("No reward logs found for user");
     }
 
     const pendingRewards = rewardLogs.filter(
       (r) => !r.isClaimed && r.action === "REWARD_EARNED"
     );
 
-       // -----------------------------
+    // -----------------------------
     // ⭐ COLLECTED REWARDS (Flattened)
     // -----------------------------
     const collectedRewards = rewardLogs
-      .filter((log) => log.isClaimed === true)
+      // .filter((log) => log.isClaimed === true)
       .flatMap((log) => log.collectedRewards ?? []);
-
 
     const safePayload = clean({
       pendingRewards: pendingRewards || [],
-      collectedRewards: collectedRewards
+      collectedRewards: collectedRewards,
     });
 
-  
     const encryptedData = encryptData(safePayload);
 
     return res.status(200).json({
@@ -258,10 +257,13 @@ export const getUserTierProgressController = async (req, res, next) => {
       tierName: "",
       order: 0,
     };
-    
+
     const sendEmptyTierProgress = () => {
-      const redeemableRewards = BuildRedeemableRewards(rawAllRewards, EMPTY_TIER);
-    
+      const redeemableRewards = BuildRedeemableRewards(
+        rawAllRewards,
+        EMPTY_TIER
+      );
+
       const safePayload = clean({
         currentStatus: {},
         nextStep: {},
@@ -271,13 +273,12 @@ export const getUserTierProgressController = async (req, res, next) => {
         redeemableRewards,
         allRewards: rawAllRewards,
       });
-    
+
       return res.status(200).json({
         success: true,
         data: encryptData(safePayload),
       });
     };
-    
 
     // ============================================================
     // 🚀 Ensure progress doc exists
@@ -328,37 +329,36 @@ export const getUserTierProgressController = async (req, res, next) => {
     const tier = await Tier.findById(progress.currentTierId);
 
     // ❗ If tier deleted after creation → return empty progress
-   // ❗ If tier deleted after creation → check if new tier exists and rebuild progress
-if (!tier) {
-  const newFirstTier = await Tier.findOne({
-    adminId,
-    platformId,
-    isActive: true,
-  }).sort({ order: 1 });
+    // ❗ If tier deleted after creation → check if new tier exists and rebuild progress
+    if (!tier) {
+      const newFirstTier = await Tier.findOne({
+        adminId,
+        platformId,
+        isActive: true,
+      }).sort({ order: 1 });
 
-  if (newFirstTier) {
-    const firstLevel =
-      newFirstTier.levels.find((l) => l.isActive && l.levelNumber === 1) ||
-      newFirstTier.levels.find((l) => l.isActive);
+      if (newFirstTier) {
+        const firstLevel =
+          newFirstTier.levels.find((l) => l.isActive && l.levelNumber === 1) ||
+          newFirstTier.levels.find((l) => l.isActive);
 
-    if (firstLevel) {
-      progress.currentTierId = newFirstTier._id;
-      progress.currentLevel = firstLevel.levelNumber;
-      progress.goalProgress = firstLevel.goals.map((g) => ({
-        goalId: g._id.toString(),
-        goalType: g.goalType,
-        target: g.target,
-        progress: 0,
-        isCompleted: false,
-      }));
+        if (firstLevel) {
+          progress.currentTierId = newFirstTier._id;
+          progress.currentLevel = firstLevel.levelNumber;
+          progress.goalProgress = firstLevel.goals.map((g) => ({
+            goalId: g._id.toString(),
+            goalType: g.goalType,
+            target: g.target,
+            progress: 0,
+            isCompleted: false,
+          }));
 
-      await progress.save();
+          await progress.save();
+        }
+      } else {
+        return sendEmptyTierProgress();
+      }
     }
-  } else {
-    return sendEmptyTierProgress();
-  }
-}
-
 
     const currentLevel = tier.levels.find(
       (l) => l.levelNumber === progress.currentLevel
@@ -422,6 +422,9 @@ if (!tier) {
       (lvl) => lvl.levelNumber === currentLevel.levelNumber + 1
     );
 
+   
+
+
     let nextStep = { type: "", value: "" };
 
     const isLastLevel = !nextLevel;
@@ -457,16 +460,34 @@ if (!tier) {
     }
 
     // UPCOMING (kept same)
-    const rawUpcomingRewards = currentLevel.rewards;
+    let upcomingRewards = { scratch: [], spin: [] };
 
-    const upcomingRewards = {
-      scratch:
-        nextLevel?.rewardMethod === "SCRATCHCARD" ? rawUpcomingRewards : [],
-      spin: nextLevel?.rewardMethod === "SPIN" ? rawUpcomingRewards : [],
-    };
+    // 1️⃣ If next level exists → show next level rewards
+    if (nextLevel) {
+      upcomingRewards = {
+        scratch:
+          currentLevel.rewardMethod === "SCRATCHCARD" ? currentLevel.rewards : [],
+        spin: currentLevel.rewardMethod === "SPIN" ? currentLevel.rewards : [],
+        slider: currentLevel.rewards,
+      };
+    }
+
+    // 2️⃣ If NO next level (you are on last level) → show CURRENT level rewards
+    else {
+      upcomingRewards = {
+        scratch:
+          currentLevel.rewardMethod === "SCRATCHCARD"
+            ? currentLevel.rewards
+            : [],
+        spin: currentLevel.rewardMethod === "SPIN" ? currentLevel.rewards : [],
+        slider: currentLevel.rewards,
+      };
+    }
 
     const pendingRewards = {
-      scratch: rawPendingRewards.filter((r) => r.rewardMethod === "SCRATCHCARD"),
+      scratch: rawPendingRewards.filter(
+        (r) => r.rewardMethod === "SCRATCHCARD"
+      ),
       spin: rawPendingRewards.filter((r) => r.rewardMethod === "SPIN"),
     };
 
@@ -494,6 +515,7 @@ if (!tier) {
       history: progress.progressHistory,
       redeemableRewards,
       allRewards: rawAllRewards,
+      upcomingRewards,
 
       debug: {
         currentTierId: progress.currentTierId,
@@ -506,7 +528,6 @@ if (!tier) {
       success: true,
       data: encryptData(safePayload),
     });
-
   } catch (err) {
     console.error("Error fetching tier progress:", err);
     next(err);

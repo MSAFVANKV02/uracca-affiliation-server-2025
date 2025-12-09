@@ -13,6 +13,8 @@ export const UserActionEnum = Object.freeze({
   USER_REFER: "USER-REFER",
   COMMISSION_PAYOUT: "COMMISSION-PAYOUT",
   REWARD_CLAIM: "REWARD_CLAIM",
+  REWARD_EARN: "REWARD_EARN",
+
 });
 
 export const UserCategoryEnum = Object.freeze({

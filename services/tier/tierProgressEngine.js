@@ -1,7 +1,9 @@
 // engines/TierProgressEngine.js
+import { UserActionEnum, UserCategoryEnum } from "../../models/enum.js";
 import { TierRewardLog } from "../../models/tier-models/tierRewardLogsSchema.js";
 import { Tier } from "../../models/tier-models/tierSystemSchema.js";
 import { UserTierProgress } from "../../models/tier-models/tierUserProgressSchema.js";
+import { createNotification } from "../../utils/createNotification.js";
 
 export default class TierProgressEngine {
   constructor({ user, adminId, platformId }) {
@@ -294,47 +296,47 @@ export default class TierProgressEngine {
    * ------------------------------------------ */
   async grantRewards(level, tier) {
     // ⭐ SCRATCHCARD: pick ONE RANDOM reward from ALL rewards (no filter)
-    if (level.rewardMethod === "SCRATCHCARD") {
-      // const allRewards = level.rewards; // NO isActive filter
-      const activeRewards = level.rewards.filter((r) => r.isActive === true);
+    // if (level.rewardMethod === "SCRATCHCARD") {
+    //   // const allRewards = level.rewards; // NO isActive filter
+    //   const activeRewards = level.rewards.filter((r) => r.isActive === true);
 
-      if (activeRewards.length > 0) {
-        const randomReward =
-          activeRewards[Math.floor(Math.random() * activeRewards.length)];
+    //   if (activeRewards.length > 0) {
+    //     const randomReward =
+    //       activeRewards[Math.floor(Math.random() * activeRewards.length)];
 
-        await TierRewardLog.create({
-          adminId: this.adminId,
-          platformId: this.platformId,
-          userId: this.user._id,
-          tierId: tier._id,
-          levelNumber: level.levelNumber,
-          levelId: level._id.toString(),
-          rewardMethod: "SCRATCHCARD",
-          spinCount: level.spinCount,
-          rewards: [
-            {
-              levelRewardId: randomReward._id.toString(),
-              rewardType: randomReward.rewardType,
-              rewardLabel: randomReward.label,
-              rewardValue: randomReward.value,
-              valueType: randomReward.valueType,
-              image: randomReward.image,
-              isActive: randomReward.isActive,
-              color: randomReward.color,
-              textColor: randomReward.textColor,
-            },
-          ],
-          action: "REWARD_EARNED",
-        });
-      }
+    //     await TierRewardLog.create({
+    //       adminId: this.adminId,
+    //       platformId: this.platformId,
+    //       userId: this.user._id,
+    //       tierId: tier._id,
+    //       levelNumber: level.levelNumber,
+    //       levelId: level._id.toString(),
+    //       rewardMethod: "SCRATCHCARD",
+    //       spinCount: level.spinCount,
+    //       rewards: [
+    //         {
+    //           levelRewardId: randomReward._id.toString(),
+    //           rewardType: randomReward.rewardType,
+    //           rewardLabel: randomReward.label,
+    //           rewardValue: randomReward.value,
+    //           valueType: randomReward.valueType,
+    //           image: randomReward.image,
+    //           isActive: randomReward.isActive,
+    //           color: randomReward.color,
+    //           textColor: randomReward.textColor,
+    //         },
+    //       ],
+    //       action: "REWARD_EARNED",
+    //     });
+    //   }
 
-      return; // stop here for scratch card
-    }
+    //   return; // stop here for scratch card
+    // }
 
     // ⭐ SPIN: save ALL rewards in the level, no filtering on isActive
     const allRewards = level.rewards;
 
-    await TierRewardLog.create({
+    const log = await TierRewardLog.create({
       adminId: this.adminId,
       platformId: this.platformId,
       userId: this.user._id,
@@ -356,6 +358,51 @@ export default class TierProgressEngine {
       })),
       action: "REWARD_EARNED",
     });
+    // 2️⃣ Send notification for each reward earned
+    // for (const r of allRewards) {
+    //   await createNotification({
+    //     userId: this.user._id,
+    //     action: UserActionEnum.REWARD_EARN,
+    //     recipientType: "user",
+    //     category: UserCategoryEnum.REWARD,
+    //     message: `You earned a reward: ${r.label}`,
+    //     metadata: {
+    //       rewardLogId: log._id,
+    //       rewardId: r._id.toString(),
+    //       tierId: tier._id.toString(),
+    //       levelNumber: level.levelNumber,
+    //     },
+    //   });
+    // }
+    // 2️⃣ Build combined message
+    const rewardNames = allRewards.map((r) => r.rewardType).join(", ");
+
+    const message =
+      allRewards.length === 1
+        ? `You earned a reward chance to earn: ${rewardNames}`
+        : `You earned ${allRewards.length} rewards chance to earn: ${rewardNames}`;
+
+    // 3️⃣ Send ONE notification only
+    await createNotification({
+      userId: this.user._id,
+      action: UserActionEnum.REWARD_EARN,
+      recipientType: "user",
+      category: UserCategoryEnum.REWARD,
+      message,
+      metadata: {
+        rewardLogId: log._id.toString(),
+        tierId: tier._id.toString(),
+        levelNumber: level.levelNumber,
+        rewards: allRewards.map((r) => ({
+          rewardId: r._id.toString(),
+          rewardLabel: r.label,
+          rewardType: r.rewardType,
+          value: r.value,
+        })),
+      },
+    });
+
+    return log;
   }
 
   /* ------------------------------------------

@@ -27,7 +27,7 @@ const NotificationsSchema = new mongoose.Schema(
     },
 
     metadata: { type: Object, default: {} }, // store extra info (method, IP, etc.)
-    message:String,
+    message: String,
     messageType: {
       type: String,
       default: function () {
@@ -50,8 +50,12 @@ const NotificationsSchema = new mongoose.Schema(
             return "User deleted the account permanently";
           case UserActionEnum.USER_REFER:
             return "User used the referral link";
-            case UserActionEnum.COMMISSION_PAYOUT:
-              return "Commission payout processed";
+          case UserActionEnum.COMMISSION_PAYOUT:
+            return "Commission payout processed";
+          case UserActionEnum.REWARD_CLAIM:
+            return "User Claimed a reward";
+            case UserActionEnum.REWARD_EARN:
+              return "You Earned a reward";
           default:
             return "User action recorded";
         }
