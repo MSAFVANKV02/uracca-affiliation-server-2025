@@ -85,6 +85,7 @@ const baseOrigins = [
   "https://www.uracca.com",
   "https://uracca.com",
   "https://www.admin.uracca.com",
+  "https://admin.uracca.com",
   "https://affiliate.uracca.com",
   "https://example.admin.uracca.in",
   "https://example.uracca.in"
