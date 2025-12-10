@@ -127,7 +127,7 @@ app.use(
       "sec-ch-ua",
       "sec-ch-ua-platform",
       "sec-ch-ua-mobile",
-    ]
+    ],
     
 
     credentials: true,
