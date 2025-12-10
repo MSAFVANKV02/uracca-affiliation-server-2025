@@ -116,7 +116,7 @@ app.use(
       }
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: "*",
+    // allowedHeaders: "*",
     
 
     credentials: true,
