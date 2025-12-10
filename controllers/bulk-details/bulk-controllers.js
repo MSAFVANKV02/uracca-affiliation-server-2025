@@ -12,6 +12,7 @@ import Withdrawals from "../../models/withdrawalSchema.js";
 import { encryptData } from "../../utils/cript-data.js";
 import { clean } from "../../helper/json-cleaner.js";
 import DailyAction from "../../models/actionSchema.js";
+import { NotFoundError } from "../../utils/errors.js";
 
 export const bulkDataController = async (req, res, next) => {
   try {
@@ -154,6 +155,9 @@ export const bulkDataController = async (req, res, next) => {
     const totalPaid = wallets.reduce((acc, w) => acc + w.paidAmount, 0);
 
     const totalCampaigns = campaigns.length;
+    const activeCampaigns = campaigns.filter(
+      (c) => c.status === "ACTIVE"
+    ).length;
     const totalUsers = currentAdmin.collaborateWith.length;
     const approvedUsers = users.filter((u) => u.status === "APPROVED").length;
     let pendingApplications = 0;
@@ -201,6 +205,7 @@ export const bulkDataController = async (req, res, next) => {
         totalUsers,
         pendingApplications,
         totalCampaigns,
+        activeCampaigns,
         totalProducts,
         totalWallet,
         balanceAmount,
@@ -211,6 +216,7 @@ export const bulkDataController = async (req, res, next) => {
         totalConversions,
         conversionRate,
         commissionDetails,
+        totalClicks,
       },
       users,
       wallets,
@@ -226,29 +232,6 @@ export const bulkDataController = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: encryptedData,
-      // data: {
-      //   summary: {
-      //     totalUsers,
-      //     pendingApplications,
-      //     totalCampaigns,
-      //     totalProducts,
-      //     totalWallet,
-      //     balanceAmount,
-      //     totalPending,
-      //     totalPaid,
-      //     approvedUsers,
-      //     activeUsers,
-      //     totalConversions,
-      //     conversionRate,
-      //     commissionDetails,
-      //   },
-      //   users,
-      //   wallets,
-      //   campaigns,
-      //   commissions,
-      //   withdrawals,
-      //   products,
-      // },
     });
   } catch (error) {
     console.error("Error fetching bulk admin data:", error);
@@ -463,12 +446,16 @@ export const getEarningChartDataController = async (req, res) => {
 };
 
 // ====== user chart
+// ================== ============================= ================== //
+// ================== SPECIFIC USERS CHART UNDER A ADMIN ================== //
+// ================== ============================= ================== //
+
 export const getUserChartDataController = async (req, res) => {
   // console.log(req.params, "req.params");
 
   try {
     const userId = req.user ? req.user?._id : req.params.userId;
-    const adminId = req.user ?req.user.workingOn : req.admin._id;
+    const adminId = req.user ? req.user.workingOn : req.admin._id;
 
     const { type = "revenue", period = "monthly" } = req.query;
 
@@ -715,6 +702,219 @@ export const getUserChartDataController = async (req, res) => {
     });
   }
 };
+
+// ================== ============================= ================== //
+// ================== ALL USERS CHART UNDER A ADMIN ================== //
+// ================== ============================= ================== //
+
+export const getAllUsersChartDataUnderAnAdminController = async (req, res) => {
+  try {
+    const adminId = req.admin?._id;
+
+    if (!adminId) {
+      throw new NotFoundError("Admin not found.");
+    }
+
+    // ───────────────────────────────────────────────
+    // PERIOD SETUP
+    // ───────────────────────────────────────────────
+    const { period = "monthly" } = req.query;
+
+    const now = new Date();
+    let startDate, groupFormat, windowSize;
+
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const WEEK_MS = 7 * DAY_MS;
+
+    switch (period) {
+      case "daily":
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 6);
+        groupFormat = { day: "2-digit", month: "short" };
+        windowSize = 7;
+        break;
+
+      case "weekly":
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 28);
+        groupFormat = { day: "2-digit", month: "short" };
+        windowSize = 4;
+        break;
+
+      case "monthly":
+        startDate = new Date(now.getFullYear(), 0, 1);
+        groupFormat = { month: "short" };
+        windowSize = 12;
+        break;
+
+      case "yearly":
+        startDate = new Date(now.getFullYear() - 4, 0, 1);
+        groupFormat = { year: "numeric" };
+        windowSize = 5;
+        break;
+
+      default:
+        startDate = new Date(now.getFullYear(), 0, 1);
+        groupFormat = { month: "short" };
+        windowSize = 12;
+        break;
+    }
+
+    // ───────────────────────────────────────────────
+    // FIND ALL USERS UNDER THIS ADMIN
+    // ───────────────────────────────────────────────
+    const users = await AffUser.find({
+      "collaborateWith.accountId": adminId,
+      "collaborateWith.status": "ACCEPTED",
+    })
+      .select("_id")
+      .lean();
+
+    const userIds = users.map((u) => u._id);
+
+    if (userIds.length === 0) {
+      throw new NotFoundError("No users under this admin.");
+    }
+
+    // ───────────────────────────────────────────────
+    // FETCH DAILY ACTIONS FOR ALL USERS
+    // ───────────────────────────────────────────────
+    const raw = await DailyAction.find({
+      userId: { $in: userIds },
+      adminId,
+      createdAt: { $gte: startDate, $lte: now },
+    }).lean();
+
+    // ───────────────────────────────────────────────
+    // PREPARE BUCKETS
+    // ───────────────────────────────────────────────
+    const buckets = {};
+
+    if (period === "daily") {
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        const label = d.toLocaleDateString("en-US", groupFormat);
+
+        buckets[label] = {
+          label,
+          clicks: 0,
+          orders: 0,
+          sales: 0,
+          earnings: 0,
+          conversion: 0,
+        };
+      }
+    }
+
+    if (period === "weekly") {
+      for (let i = 1; i <= 4; i++) {
+        const label = `Week ${i}`;
+        buckets[label] = {
+          label,
+          clicks: 0,
+          orders: 0,
+          sales: 0,
+          earnings: 0,
+          conversion: 0,
+        };
+      }
+    }
+
+    if (period === "monthly") {
+      for (let m = 0; m < 12; m++) {
+        const label = new Date(now.getFullYear(), m).toLocaleString("en-US", {
+          month: "short",
+        });
+        buckets[label] = {
+          label,
+          clicks: 0,
+          orders: 0,
+          sales: 0,
+          earnings: 0,
+          conversion: 0,
+        };
+      }
+    }
+
+    if (period === "yearly") {
+      for (let y = now.getFullYear() - 4; y <= now.getFullYear(); y++) {
+        buckets[y.toString()] = {
+          label: y.toString(),
+          clicks: 0,
+          orders: 0,
+          sales: 0,
+          earnings: 0,
+          conversion: 0,
+        };
+      }
+    }
+
+    // ───────────────────────────────────────────────
+    // FILL BUCKETS
+    // ───────────────────────────────────────────────
+    raw.forEach((a) => {
+      const date = new Date(a.createdAt);
+
+      let label;
+
+      if (period === "yearly") {
+        label = date.getFullYear().toString();
+      } else if (period === "monthly") {
+        label = date.toLocaleString("en-US", { month: "short" });
+      } else if (period === "weekly") {
+        const weekIndex = Math.floor((now - date) / WEEK_MS);
+        label = `Week ${Math.max(1, 4 - weekIndex)}`;
+      } else {
+        label = date.toLocaleDateString("en-US", groupFormat);
+      }
+
+      if (!buckets[label]) return;
+
+      buckets[label].clicks += a.clicks || 0;
+      buckets[label].orders += a.orders || 0;
+      buckets[label].sales += a.sales || 0;
+      buckets[label].earnings += a.earnings || 0;
+    });
+
+    // ───────────────────────────────────────────────
+    // CALCULATE CONVERSION PER BUCKET
+    // ───────────────────────────────────────────────
+    Object.values(buckets).forEach((b) => {
+      if (b.clicks > 0) {
+        b.conversion = Number(((b.orders / b.clicks) * 100).toFixed(2));
+      } else {
+        b.conversion = 0;
+      }
+    });
+
+    // ───────────────────────────────────────────────
+    // RESPOND
+    // ───────────────────────────────────────────────
+    const chartData = Object.values(buckets);
+
+    const safePayload = clean({
+      period,
+      chartData,
+    });
+
+    const encrypted = encryptData(safePayload);
+
+    return res.status(200).json({
+      success: true,
+      data: encrypted,
+    });
+
+  } catch (err) {
+    console.error("All Users Chart Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while generating chart data.",
+    });
+  }
+};
+
+
 // export const getUserChartDataController = async (req, res) => {
 //   try {
 //     const userId = req.user._id;

@@ -217,7 +217,7 @@ export const getAllMyRewardsController = async (req, res, next) => {
 // ================================================================ ///
 export const getUserTierProgressController = async (req, res, next) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user ? req.user._id : req.params.userId;
 
     // 1️⃣ Validate user
     const user = await AffUser.findById(userId);
@@ -422,9 +422,6 @@ export const getUserTierProgressController = async (req, res, next) => {
       (lvl) => lvl.levelNumber === currentLevel.levelNumber + 1
     );
 
-   
-
-
     let nextStep = { type: "", value: "" };
 
     const isLastLevel = !nextLevel;
@@ -466,7 +463,9 @@ export const getUserTierProgressController = async (req, res, next) => {
     if (nextLevel) {
       upcomingRewards = {
         scratch:
-          currentLevel.rewardMethod === "SCRATCHCARD" ? currentLevel.rewards : [],
+          currentLevel.rewardMethod === "SCRATCHCARD"
+            ? currentLevel.rewards
+            : [],
         spin: currentLevel.rewardMethod === "SPIN" ? currentLevel.rewards : [],
         slider: currentLevel.rewards,
       };

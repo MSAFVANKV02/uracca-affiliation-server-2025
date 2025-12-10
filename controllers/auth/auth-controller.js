@@ -311,6 +311,8 @@ export const loginUser = async (req, res, next) => {
       secure: false, // important for IP
       sameSite: "lax", // important for IP
       path: "/",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 🔥 7 days in ms
+      // maxAge: 1 * 60 * 1000, // i min
     });
 
     // Prepare cookie options

@@ -44,6 +44,8 @@ router.patch(
 router.get("/all", authenticateAdmin, getAllAffiliateTiersController);
 router.get("/:tierId", authenticateAdmin, getAllAffiliateTiersWithIdController);
 router.get("/user/my-tier", authenticateUser, getUserTierProgressController);
+router.get("/admin/user-tier/:userId", authenticateAdmin, getUserTierProgressController);
+
 router.get(
   "/user/my-rewards/:id",
   authenticateUser,
