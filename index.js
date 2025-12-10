@@ -116,18 +116,7 @@ app.use(
       }
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "x-api-key",
-      "x-domain",
-      "sec-fetch-site",
-      "sec-fetch-mode",
-      "sec-fetch-dest",
-      "sec-ch-ua",
-      "sec-ch-ua-platform",
-      "sec-ch-ua-mobile",
-    ],
+    allowedHeaders: "*",
     
 
     credentials: true,
