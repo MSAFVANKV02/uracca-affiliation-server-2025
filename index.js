@@ -103,25 +103,26 @@ const allowedOrigins = Array.from(new Set([...baseOrigins, ...extraOrigins]));
 // console.log(allowedOrigins.co,'extraOrigins');
 
 
-// app.use(
-//   cors({
-//     origin: (origin, callback) => {
-//       console.log("Allowed origins:", allowedOrigins);
-//       console.log("🔥 Incoming CORS request from:", origin);
-//       if (!origin || allowedOrigins.includes(origin)) {
-//         callback(null, true);
-//       } else {
-//         console.log("❌ Blocked Origin:", origin);
-//         callback(new Error("Not allowed by CORS"));
-//       }
-//     },
-//     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-//     // allowedHeaders: "*",
-    
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      console.log("Allowed origins:", allowedOrigins);
+      console.log("🔥 Incoming CORS request from:", origin);
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.log("❌ Blocked Origin:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    // allowedHeaders: "*",
+    allowedHeaders: ["Content-Type", "Authorization", "x-api-key","x-domain"],
 
-//     credentials: true,
-//   })
-// );
+
+    credentials: true,
+  })
+);
 
 // ------- admins apis ----------- ////
 
