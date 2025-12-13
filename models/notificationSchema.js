@@ -10,9 +10,14 @@ const NotificationsSchema = new mongoose.Schema(
       enum: Object.values(UserActionEnum),
       required: true,
     },
+    // recipientType: {
+    //   type: String,
+    //   enum: ["user", "admin"],
+    //   required: true,
+    // },
     recipientType: {
       type: String,
-      enum: ["user", "admin"],
+      enum: ["USER", "ADMIN", "SUPER_ADMIN"],
       required: true,
     },
     isRead: {

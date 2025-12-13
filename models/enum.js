@@ -14,7 +14,6 @@ export const UserActionEnum = Object.freeze({
   COMMISSION_PAYOUT: "COMMISSION-PAYOUT",
   REWARD_CLAIM: "REWARD_CLAIM",
   REWARD_EARN: "REWARD_EARN",
-
 });
 
 export const UserCategoryEnum = Object.freeze({
@@ -26,7 +25,7 @@ export const UserCategoryEnum = Object.freeze({
   GENERAL: "GENERAL",
   EARNINGS: "EARNINGS",
   REWARD: "REWARD",
-
+  COLLABORATION: "COLLABORATION",
 });
 
 export const UserTypeEnum = Object.freeze({
@@ -40,6 +39,6 @@ export const statusEnum = Object.freeze({
   APPROVED: "APPROVED",
   REJECTED: "REJECTED",
   BLOCKED: "BLOCKED",
-  SUSPENDED:"SUSPENDED",
-  PAUSED:"PAUSED"
+  SUSPENDED: "SUSPENDED",
+  PAUSED: "PAUSED",
 });

@@ -5,6 +5,8 @@ import { createNotification } from "../../utils/createNotification.js";
 import { UserActionEnum, UserCategoryEnum } from "../../models/enum.js";
 import { clean } from "../../helper/json-cleaner.js";
 import { encryptData } from "../../utils/cript-data.js";
+import { MissingFieldError, NotFoundError } from "../../utils/errors.js";
+import AffUser from "../../models/aff-user.js";
 
 export const claimUserRewardController = async (req, res, next) => {
   try {
@@ -48,13 +50,10 @@ export const claimUserRewardController = async (req, res, next) => {
 
     // console.log(log.spinCount, "remaining spins before collection");
 
-
     // 5️⃣ UPDATE global log state
     log.spinCount = log.spinCount - 1;
 
-
     // console.log(log.spinCount, "remaining spins after collection");
-    
 
     // When all spins are used → close the log permanently
     if (log.spinCount <= 0) {
@@ -71,7 +70,7 @@ export const claimUserRewardController = async (req, res, next) => {
     await createNotification({
       userId,
       action: UserActionEnum.REWARD_CLAIM,
-      recipientType: "user",
+      recipientType: "USER",
       category: UserCategoryEnum.REWARD,
       message: `You collected reward: ${reward.rewardLabel}`,
       metadata: {
@@ -99,6 +98,127 @@ export const claimUserRewardController = async (req, res, next) => {
   }
 };
 
+export const getUserRewardsForTheirAdmins = async (req, res, next) => {
+  try {
+    const admin = req.admin;
+    const adminId = req.admin._id;
+
+    const adminData = await AffUser.findById(adminId).select("collaborateWith");
+
+    if (!adminData) {
+      throw new NotFoundError("Admin not found");
+    }
+
+    const collaboratorIds = adminData.collaborateWith
+      .filter((c) => c.status === "ACCEPTED")
+      .map((c) => c.accountId);
+
+    // Include admin's own reward logs too
+    collaboratorIds.push(adminId);
+
+    const logs = await TierRewardLog.find({
+      adminId: adminId,
+      userId: { $in: collaboratorIds },
+      action: { $ne: "TIER_COMPLETED" },
+    })
+      .populate("userId", "fullName userName email avatar mobile")
+      .populate("tierId", "tierName order isActive description")
+      .sort({ createdAt: -1 });
+
+    // const safePayload = clean({
+    //   collectedRewards: log.collectedRewards,
+    //   log,
+    // });
+
+    const encryptedData = encryptData(logs);
+
+    return res.status(200).json({
+      success: true,
+      total: logs.length,
+      data: encryptedData,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateClaimedRewards = async (req, res, next) => {
+  try {
+    const adminId = req.admin._id;
+    const rewardLogId = req.params.rewardLogId;
+
+    const { rewardId, status } = req.body;
+
+    if (!rewardId || !status) {
+      throw new MissingFieldError("rewardId & status required");
+    }
+
+    const log = await TierRewardLog.findOne({
+      _id: rewardLogId,
+      adminId,
+    });
+
+    if (!log) {
+      throw new NotFoundError("Reward log not found");
+    }
+
+    /* -------------------------------------------------------------
+       STEP 1 → Always update inside collectedRewards[]
+    -------------------------------------------------------------- */
+    const rewardItem = log.collectedRewards.id(rewardId);
+
+    if (!rewardItem) {
+      throw new NotFoundError("Reward item not found in collectedRewards");
+    }
+
+    rewardItem.status = status;
+
+    // Update reward timestamps + boolean flags
+    if (status === "PROCESSING") {
+      rewardItem.isClaimed = true;
+      rewardItem.claimedAt = new Date();
+    }
+
+    if (status === "PAID") {
+      rewardItem.isCollected = true;
+      rewardItem.collectedAt = new Date();
+    }
+
+    /* -------------------------------------------------------------
+       STEP 2 → If spinCount = 0 → update main log as well
+    -------------------------------------------------------------- */
+    if (log.spinCount === 0) {
+      log.status = status;
+
+      if (status === "PROCESSING") {
+        log.isClaimed = true;
+        log.claimedAt = new Date();
+      }
+
+      if (status === "PAID") {
+        log.isCollected = true;
+        log.collectedAt = new Date();
+      }
+
+      if (status === "DELIVERED") {
+        log.isDelivered = true;
+        log.deliveredAt = new Date();
+      }
+    }
+
+    /* -------------------------------------------------------------
+       STEP 3 → Save
+    -------------------------------------------------------------- */
+    await log.save();
+
+    return res.status(200).json({
+      message: "Reward updated successfully",
+    });
+  } catch (error) {
+    console.log(error)
+    next(error); // ⬅ passes error to global handler
+  }
+};
 
 
 

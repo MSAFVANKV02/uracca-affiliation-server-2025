@@ -16,7 +16,7 @@ import {
   getUserTierProgressController,
   getAllMyRewardsController,
 } from "../controllers/tier/tier.retrieve.controller.js";
-import { claimUserRewardController } from "../controllers/tier/tier.rewards.controller.js";
+import { claimUserRewardController, getUserRewardsForTheirAdmins, updateClaimedRewards } from "../controllers/tier/tier.rewards.controller.js";
 const router = express.Router();
 
 // Create Tier
@@ -53,5 +53,17 @@ router.get(
 );
 router.get("/user/allMyRewards", authenticateUser, getAllMyRewardsController);
 router.put("/user/claim/reward", authenticateUser, claimUserRewardController);
+
+
+// for admins
+router.get("/admin/rewards", authenticateAdmin, getUserRewardsForTheirAdmins);
+//  === update user reward by admin ====
+
+router.patch(
+  "/admin/reward/update/:rewardLogId",
+  authenticateAdmin,
+  updateClaimedRewards
+);
+
 
 export default router;

@@ -12,7 +12,7 @@ export const getCurrentUsers = async (req, res, next) => {
 
     // Admin case (admin making request)
     const adminId = req.admin?._id;
-    
+
     // Normal affiliate user case (user making request)
     const userId = req.user?._id;
 
@@ -40,7 +40,6 @@ export const getCurrentUsers = async (req, res, next) => {
     next(error);
   }
 };
-
 
 export const getAllAffUsers = async (req, res) => {
   // console.log('getAllAffUsers');
@@ -228,5 +227,29 @@ export const getAllAdminsAffUsers = async (req, res) => {
       success: false,
       message: "Server error while fetching users",
     });
+  }
+};
+
+export const logoutAdmin = async (req, res, next) => {
+  try {
+    res.clearCookie("aff-admin-tkn", {
+      path: "/",
+      domain: process.env.COOKIE_DOMAIN,
+      secure: process.env.NODE_ENV === "production",
+      // httpOnly: true,
+      sameSite: "Strict",
+    });
+
+    res.clearCookie("connect.sid", {
+      path: "/",
+      domain: process.env.COOKIE_DOMAIN,
+      secure: process.env.NODE_ENV === "production",
+      // httpOnly: true,
+      sameSite: "Strict",
+    });
+
+    res.status(200).json({ message: "Admin logged out successfully" });
+  } catch (error) {
+    next(error);
   }
 };

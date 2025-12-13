@@ -7,7 +7,7 @@ import AffiliateNotifications from "../models/notificationSchema.js";
 export async function createNotification({
   userId,
   action = UserActionEnum.GENERAL,
-  recipientType = "user",
+  recipientType = "USER",
   category = UserCategoryEnum.GENERAL,
   message,
   metadata = {},

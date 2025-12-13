@@ -22,7 +22,7 @@ export const createCommissionNotifications = async ({
     await AffiliateNotifications.create({
       user: user._id,
       action: UserActionEnum.COMMISSION_PAYOUT,
-      recipientType: "user",
+      recipientType: "USER",
       category: UserCategoryEnum.EARNINGS,
       message: `New commission of ₹${amount} credited for campaign "${campaign.campaignAccessKey}" from company "${admin.userName}".`,
       messageType: "Commission payout processed",
@@ -37,7 +37,7 @@ export const createCommissionNotifications = async ({
     await AffiliateNotifications.create({
       user: admin._id,
       action: UserActionEnum.COMMISSION_PAYOUT,
-      recipientType: "admin",
+      recipientType: "ADMIN",
       category: UserCategoryEnum.PAYOUT,
       message: `New commission of ₹${amount} paid to user "${user.userName}" for campaign "${campaign.campaignAccessKey}".`,
       messageType: "Commission payout processed",

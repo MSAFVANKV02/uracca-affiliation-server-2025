@@ -386,7 +386,7 @@ export default class TierProgressEngine {
     await createNotification({
       userId: this.user._id,
       action: UserActionEnum.REWARD_EARN,
-      recipientType: "user",
+      recipientType: "USER",
       category: UserCategoryEnum.REWARD,
       message,
       metadata: {
