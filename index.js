@@ -24,6 +24,8 @@ import campaignRouter from "./routes/campaign-route.js";
 import affiliateRouter from "./routes/affiliate-route.js";
 import walletRouter from "./routes/wallet-route.js";
 import bulkRouter from "./routes/bulk-route.js";
+import NotificationRouter from "./routes/notifications.route.js";
+
 import CommissionRouter from "./routes/commission-route.js";
 import NpmRouter from "./routes/npm-route/route.js";
 import tierRouter from "./routes/tier.route.js";
@@ -160,6 +162,7 @@ app.use("/api/admin/products", productRouter);
 // app.use("/test/order", testRouter);
 
 app.use("/api/admin/bulk-details", bulkRouter);
+app.use("/api/admin/notifications", NotificationRouter);
 
 // ------- users apis ----------- ////
 app.use("/api/users/products", productRouter);

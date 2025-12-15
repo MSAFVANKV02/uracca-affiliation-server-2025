@@ -43,9 +43,9 @@ export const claimUserRewardController = async (req, res, next) => {
       image: reward.image,
       isActive: reward.isActive,
       isClaimed: true,
-      isCollected: true,
+      isCollected: false,
       claimedAt: new Date(),
-      collectedAt: new Date(),
+      // collectedAt: new Date(),
     });
 
     // console.log(log.spinCount, "remaining spins before collection");
@@ -58,9 +58,9 @@ export const claimUserRewardController = async (req, res, next) => {
     // When all spins are used → close the log permanently
     if (log.spinCount <= 0) {
       log.isClaimed = true;
-      log.isCollected = true;
+      // log.isCollected = true;
       log.claimedAt = new Date();
-      log.collectedAt = new Date();
+      // log.collectedAt = new Date();
       log.action = "REWARD_COLLECTED";
     }
 
@@ -100,7 +100,6 @@ export const claimUserRewardController = async (req, res, next) => {
 
 export const getUserRewardsForTheirAdmins = async (req, res, next) => {
   try {
-    const admin = req.admin;
     const adminId = req.admin._id;
 
     const adminData = await AffUser.findById(adminId).select("collaborateWith");
@@ -113,29 +112,89 @@ export const getUserRewardsForTheirAdmins = async (req, res, next) => {
       .filter((c) => c.status === "ACCEPTED")
       .map((c) => c.accountId);
 
-    // Include admin's own reward logs too
     collaboratorIds.push(adminId);
 
     const logs = await TierRewardLog.find({
-      adminId: adminId,
+      adminId,
       userId: { $in: collaboratorIds },
-      action: { $ne: "TIER_COMPLETED" },
+      // action: { $nin: ["TIER_COMPLETED", "REWARD_TERMINATED"] },
+      action: { $nin: ["TIER_COMPLETED"] },
     })
       .populate("userId", "fullName userName email avatar mobile")
       .populate("tierId", "tierName order isActive description")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
-    // const safePayload = clean({
-    //   collectedRewards: log.collectedRewards,
-    //   log,
-    // });
+    /* ---------------------------------------------------
+       DERIVED REWARDS FOR FRONTEND
+    --------------------------------------------------- */
 
-    const encryptedData = encryptData(logs);
+    const cancelledRewards = [];
+    const pendingRewards = [];
+
+    logs.forEach((log) => {
+      (log.collectedRewards || []).forEach((reward) => {
+        const base = {
+          ...reward,
+          rewardLogId: log._id,
+          userId: log.userId,
+          tierId: log.tierId,
+          logStatus: log.status,
+          action: log.action,
+        };
+
+        if (reward.status === "CANCELLED") {
+          cancelledRewards.push({
+            ...base,
+            cancelledAt: reward.cancelledAt,
+          });
+        }
+
+        if (reward.status === "PENDING") {
+          pendingRewards.push({
+            ...base,
+            claimedAt: reward.claimedAt,
+          });
+        }
+      });
+    });
+
+    /* ---------------------------------------------------
+       LOG-LEVEL DATA
+    --------------------------------------------------- */
+
+    const cancelledLogs = logs.filter((log) => log.status === "CANCELLED");
+
+    /* ---------------------------------------------------
+       SUMMARY (for frontend counters)
+    --------------------------------------------------- */
+
+    const summary = {
+      totalLogs: logs.length,
+      cancelledLogsCount: cancelledLogs.length,
+      cancelledRewardsCount: cancelledRewards.length,
+      pendingRewardsCount: pendingRewards.length,
+      activeLogsCount: logs.filter((l) => l.status !== "CANCELLED").length,
+    };
+
+    const safePayload = clean({
+      summary,
+      cancelledRewards,
+      pendingRewards,
+      cancelledLogs,
+      logs,
+    });
+
+    /* ---------------------------------------------------
+       ENCRYPT MAIN DATA (unchanged)
+    --------------------------------------------------- */
+
+    const encryptedLogs = encryptData(safePayload);
 
     return res.status(200).json({
       success: true,
       total: logs.length,
-      data: encryptedData,
+      data: encryptedLogs,
     });
   } catch (error) {
     next(error);
@@ -149,172 +208,209 @@ export const updateClaimedRewards = async (req, res, next) => {
 
     const { rewardId, status } = req.body;
 
-    if (!rewardId || !status) {
-      throw new MissingFieldError("rewardId & status required");
+    if (!status) {
+      throw new MissingFieldError("status required");
     }
 
     const log = await TierRewardLog.findOne({
       _id: rewardLogId,
       adminId,
-    });
+    }).populate("userId")
 
     if (!log) {
       throw new NotFoundError("Reward log not found");
     }
 
     /* -------------------------------------------------------------
-       STEP 1 → Always update inside collectedRewards[]
+       CASE 1 → rewardId PROVIDED → update single collectedReward
     -------------------------------------------------------------- */
-    const rewardItem = log.collectedRewards.id(rewardId);
+    if (rewardId) {
+      const rewardItem = log.collectedRewards.id(rewardId);
 
-    if (!rewardItem) {
-      throw new NotFoundError("Reward item not found in collectedRewards");
-    }
-
-    rewardItem.status = status;
-
-    // Update reward timestamps + boolean flags
-    if (status === "PROCESSING") {
-      rewardItem.isClaimed = true;
-      rewardItem.claimedAt = new Date();
-    }
-
-    if (status === "PAID") {
-      rewardItem.isCollected = true;
-      rewardItem.collectedAt = new Date();
-    }
-
-    /* -------------------------------------------------------------
-       STEP 2 → If spinCount = 0 → update main log as well
-    -------------------------------------------------------------- */
-    if (log.spinCount === 0) {
-      log.status = status;
-
-      if (status === "PROCESSING") {
-        log.isClaimed = true;
-        log.claimedAt = new Date();
+      if (!rewardItem) {
+        throw new NotFoundError("Reward item not found in collectedRewards");
       }
+
+      rewardItem.status = status;
 
       if (status === "PAID") {
-        log.isCollected = true;
-        log.collectedAt = new Date();
+        rewardItem.deliveredAt = new Date();
+        rewardItem.isCollected = true;
+        rewardItem.collectedAt = new Date();
       }
 
-      if (status === "DELIVERED") {
-        log.isDelivered = true;
-        log.deliveredAt = new Date();
+      if (status === "PROCESSING") {
+        rewardItem.collectedAt = new Date();
+        rewardItem.isCollected = true;
+      }
+
+      if (status === "CANCELLED") {
+        rewardItem.collectedAt = new Date();
+        rewardItem.cancelledAt = new Date();
       }
     }
 
     /* -------------------------------------------------------------
-       STEP 3 → Save
+       CASE 2 → rewardId NOT PROVIDED → update ALL collectedRewards
+    -------------------------------------------------------------- */
+    if (!rewardId) {
+      log.collectedRewards.forEach((item) => {
+        item.status = status;
+
+        if (status === "PAID") {
+          item.deliveredAt = new Date();
+          item.collectedAt = new Date();
+          item.isCollected = true;
+        }
+
+        if (status === "PROCESSING") {
+          item.collectedAt = new Date();
+          item.isCollected = true;
+        }
+
+        if (status === "CANCELLED") {
+          item.cancelledAt = new Date();
+          item.collectedAt = new Date();
+          item.isCollected = true;
+        }
+      });
+    }
+
+    /* -------------------------------------------------------------
+       LOG-LEVEL UPDATES (applies to both cases)
+    -------------------------------------------------------------- */
+
+    // If cancelling everything
+    if (status === "CANCELLED") {
+      log.status = "CANCELLED";
+
+      if (log.collectedRewards.length === 1 || !rewardId) {
+        log.action = "REWARD_TERMINATED";
+      }
+    }
+
+    // If paid
+    if (status === "PAID") {
+      log.status = "PAID";
+
+      if (log.spinCount === 0 || !rewardId) {
+        log.isDelivered = true;
+        log.deliveredAt = new Date();
+        log.action = "REWARD_GIVEN";
+      }
+    }
+
+    // 🔔 Notify USER
+    await createNotification({
+      userId: log.userId._id,
+      recipientType: "USER",
+      action:UserActionEnum.REWARD_STATUS_CHANGE,
+      category: UserCategoryEnum.REWARD,
+      message: `Your reward has been ${status.toLowerCase()}`,
+      metadata: {
+        rewardLogId: log._id,
+        status,
+      },
+    });
+
+    // 🔔 Notify CURRENT ADMIN (normal or super)
+    await createNotification({
+      userId: adminId,
+      recipientType: req.admin.userType,
+      action: UserActionEnum.REWARD_STATUS_CHANGE,
+      category: UserCategoryEnum.REWARD,
+      message: `Reward ${status.toLowerCase()} for user ${log.userId.fullName}`,
+      metadata: {
+        rewardLogId: log._id,
+        userId: log.userId._id,
+        status,
+      },
+    });
+
+    /* -------------------------------------------------------------
+       SAVE
     -------------------------------------------------------------- */
     await log.save();
 
     return res.status(200).json({
-      message: "Reward updated successfully",
+      message: rewardId
+        ? "Reward updated successfully"
+        : "All rewards updated successfully",
     });
   } catch (error) {
-    console.log(error)
-    next(error); // ⬅ passes error to global handler
+    console.log(error);
+    next(error);
   }
 };
 
-
-
-// export const claimUserRewardController = async (req, res, next) => {
+// export const updateClaimedRewards = async (req, res, next) => {
 //   try {
-//     const { rewardLogId, rewardId } = req.body;
-//     const userId = req.user._id;
+//     const adminId = req.admin._id;
+//     const rewardLogId = req.params.rewardLogId;
 
-//     if (!rewardLogId || !rewardId) {
-//       //   return res
-//       //     .status(400)
-//       //     .json({ message: "rewardLogId and rewardId are required" });
-//       throw new Error("rewardLogId and rewardId are required");
+//     const { rewardId, status } = req.body;
+
+//     if (!status) {
+//       throw new MissingFieldError("status required");
 //     }
 
-//     // 1️⃣ GET THE REWARD LOG
 //     const log = await TierRewardLog.findOne({
 //       _id: rewardLogId,
-//       userId,
+//       adminId,
 //     });
 
 //     if (!log) {
-//       //   return res.status(404).json({ message: "Reward log not found" });
-//       throw new Error("Reward log not found");
+//       throw new NotFoundError("Reward log not found");
 //     }
 
-//     if (log.spinCount <= 0) {
-//       //   return res.status(400).json({ message: "No spins left" });
-//       throw new Error("No spins left");
+//     /* -------------------------------------------------------------
+//        STEP 1 → Always update inside collectedRewards[]
+//     -------------------------------------------------------------- */
+//     const rewardItem = log.collectedRewards.id(rewardId);
+
+//     if (!rewardItem) {
+//       throw new NotFoundError("Reward item not found in collectedRewards");
 //     }
 
-//     if (log.spinCount <= 0 || log.isCollected || log.isClaimed) {
-//       throw new Error("Reward already collected");
+//     rewardItem.status = status;
+
+//     if (status === "PAID") {
+//       // rewardItem.isCollected = true;
+//       rewardItem.deliveredAt = new Date();
 //     }
 
-//     // 2️⃣ FIND THE REWARD INSIDE LOG
-//     const reward = log.rewards.find((r) => r.levelRewardId === rewardId);
-
-//     if (!reward) {
-//       //   return res
-//       //     .status(404)
-//       //     .json({ message: "Selected reward not found in log" });
-//       throw new Error("Selected reward not found in log");
+//     if (status === "CANCELLED") {
+//       if (log.collectedRewards.length === 1) {
+//         log.action = "REWARD_TERMINATED";
+//       }
+//       log.status = "CANCELLED";
+//       rewardItem.status = "CANCELLED";
+//       rewardItem.cancelledAt = new Date();
 //     }
 
-//     // 3️⃣ UPDATE COLLECTED REWARD SNAPSHOT
-//     log.collectedReward = {
-//       rewardType: reward.rewardType,
-//       label: reward.rewardLabel,
-//       value: reward.rewardValue,
-//       valueType: reward.valueType,
-//       color: reward.color,
-//       textColor: reward.textColor,
-//       image: reward.image,
-//       isActive: reward.isActive,
-//     };
+//     /* -------------------------------------------------------------
+//        STEP 2 → If spinCount = 0 → update main log as well
+//     -------------------------------------------------------------- */
+//     if (log.spinCount === 0) {
+//       log.status = status;
 
-//     // 4️⃣ UPDATE STATUS
-//     log.isClaimed = true;
-//     log.claimedAt = new Date();
-//     log.isCollected = true;
-//     log.collectedAt = new Date();
-//     log.spinCount = log.spinCount - 1;
+//       if (status === "PAID") {
+//         log.isDelivered = true;
+//         log.deliveredAt = new Date();
+//         log.action = "REWARD_GIVEN";
+//       }
+//     }
 
-//     log.action = "REWARD_COLLECTED";
-
+//     /* -------------------------------------------------------------
+//        STEP 3 → Save
+//     -------------------------------------------------------------- */
 //     await log.save();
 
-//     // 5️⃣ SEND NOTIFICATION
-//     await createNotification({
-//       userId: userId,
-//       action: UserActionEnum.REWARD_COLLECT, // Add this enum
-//       recipientType: "user",
-//       category: UserCategoryEnum.REWARD,
-//       message: `You collected reward: ${reward.rewardLabel}`,
-//       metadata: {
-//         rewardLogId,
-//         rewardId,
-//         tierId: log.tierId,
-//         levelNumber: log.levelNumber,
-//       },
+//     return res.status(200).json({
+//       message: "Reward updated successfully",
 //     });
-
-//     const safePayload = clean({
-//       collectedReward: log.collectedReward,
-//       log,
-//     });
-
-//     const encryptedData = encryptData(safePayload);
-//     return res.json({
-//       message: "Reward collected successfully",
-//       data: encryptedData,
-//     });
-//   } catch (err) {
-//     console.error("collectRewardController error", err);
-//     // return res.status(500).json({ message: err.message });
-//     next(err);
+//   } catch (error) {
+//     console.log(error);
+//     next(error); // ⬅ passes error to global handler
 //   }
 // };

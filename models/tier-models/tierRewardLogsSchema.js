@@ -76,7 +76,7 @@ const collectedRewardSchema = new mongoose.Schema({
   value: { type: Number, required: true },
   status: {
     type: String,
-    enum: ["PENDING", "PROCESSING", "PAID"],
+    enum: ["PENDING", "PROCESSING", "PAID", "CANCELLED"],
     default: "PENDING",
   },
   color: { type: String },
@@ -88,6 +88,8 @@ const collectedRewardSchema = new mongoose.Schema({
   claimedAt: Date,
   collectedAt: Date,
   deliveredAt: Date,
+  cancelledAt: Date,
+
 });
 
 const tierRewardLogSchema = new mongoose.Schema(
@@ -129,7 +131,7 @@ const tierRewardLogSchema = new mongoose.Schema(
     levelId: { type: String },
     status: {
       type: String,
-      enum: ["PENDING", "PROCESSING", "PAID"],
+      enum: ["PENDING", "PROCESSING", "PAID", "CANCELLED"],
       default: "PENDING",
     },
 
@@ -153,6 +155,8 @@ const tierRewardLogSchema = new mongoose.Schema(
         "REWARD_EARNED",
         "REWARD_COLLECTED",
         "REWARD_GIVEN",
+        "REWARD_TERMINATED",
+
       ],
     },
 

@@ -14,6 +14,8 @@ export const UserActionEnum = Object.freeze({
   COMMISSION_PAYOUT: "COMMISSION-PAYOUT",
   REWARD_CLAIM: "REWARD_CLAIM",
   REWARD_EARN: "REWARD_EARN",
+  REWARD_STATUS_CHANGE: "REWARD_STATUS_CHANGE",
+
 });
 
 export const UserCategoryEnum = Object.freeze({
