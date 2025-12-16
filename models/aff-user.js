@@ -48,9 +48,20 @@ const notificationsSchema = new mongoose.Schema({
   },
 });
 
+// const documentSchema = new mongoose.Schema({
+//   url: { type: String, required: true },
+//   type: { type: String, required: true },
+// });
 const documentSchema = new mongoose.Schema({
   url: { type: String, required: true },
   type: { type: String, required: true },
+  thumbnail: String,
+  width: Number,
+  height: Number,
+  format: String,
+  mimetype: String,
+  size: Number,
+ 
 });
 
 // ✅ Referral ID generator

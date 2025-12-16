@@ -9,7 +9,7 @@ import {
   getEarningChartDataController,
   getUserChartDataController,
 } from "../controllers/bulk-details/bulk-controllers.js";
-import { getAdminAnalysis, getAffiliatePerformanceTable } from "../controllers/bulk-details/analysis.controller.js";
+import {  analysisTablesOfUserInAdmin, getAffiliatePerformanceTable } from "../controllers/bulk-details/analysis.controller.js";
 
 const router = express.Router();
 
@@ -35,4 +35,11 @@ router.get(
   authenticateAdmin,
   getAffiliatePerformanceTable
 );
+
+
+router.get(
+  "/members/analysis/:userId",
+  authenticateAdmin,
+  analysisTablesOfUserInAdmin)
+
 export default router;

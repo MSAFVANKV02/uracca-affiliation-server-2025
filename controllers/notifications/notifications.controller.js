@@ -123,7 +123,60 @@ export const deleteAdminNotifications = async (req, res, next) => {
     });
   } catch (error) {
     console.log(error);
-    
+
+    next(error);
+  }
+};
+
+// ====================================================================================
+// ========================= isRead admin notifications ================================
+// ====================================================================================
+
+export const admitAsReadAdminNotifications = async (req, res, next) => {
+  try {
+    const adminId = req.admin?._id;
+
+    if (!adminId) {
+      throw new NotFoundError("Admin not detected");
+    }
+
+    const { nId } = req.params;
+
+    // ✅ Validate input
+    if (!nId) {
+      throw new BadRequestError("Notification id is required");
+    }
+
+    // ✅ Delete only this admin's notifications
+    const result = await AffiliateNotifications.updateOne(
+      {
+        _id: nId,
+        user: adminId,
+        recipientType: req.admin.userType,
+        isRead: false,
+      },
+      {
+        $set: { isRead: true },
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      throw new NotFoundError("Notification not found");
+    }
+
+        const encryptedData = encryptData(result);
+
+
+    return res.status(200).json({
+      success: true,
+      message: "Notification marked as read",
+      count: result.modifiedCount,
+      data: encryptedData,
+
+    });
+  } catch (error) {
+    console.log(error);
+
     next(error);
   }
 };

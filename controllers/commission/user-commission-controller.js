@@ -2,6 +2,9 @@ import mongoose from "mongoose";
 import { Commissions } from "../../models/commissionSchema.js";
 import { encryptData } from "../../utils/cript-data.js";
 import { NotFoundError } from "../../utils/errors.js";
+import { Transaction } from "../../models/transactionSchema.js";
+import { Wallet } from "../../models/walletSchema.js";
+import { clean } from "../../helper/json-cleaner.js";
 
 export const userAllCommissionDetails = async (req, res, next) => {
   try {
@@ -48,14 +51,35 @@ export const userAllCommissionDetails = async (req, res, next) => {
     if (campaignId !== "all") {
       query.campaignId = new mongoose.Types.ObjectId(campaignId);
     }
-
+// 
     const sortOrder = sort === "oldest" ? 1 : -1;
 
     const commissions = await Commissions.find(query)
       .populate("campaignId")
       .sort({ createdAt: sortOrder });
 
-    const encryptedData = encryptData(commissions);
+          const wallet = await Wallet.find(
+            {
+              userId,adminId
+            }
+          )
+      .populate("campaignId")
+      .sort({ createdAt: sortOrder });
+
+       const transactions = await Transaction.find(
+        {
+          walletId:wallet._id
+        }
+       )
+      .populate("walletId")
+      .sort({ createdAt: sortOrder });
+
+      const safePayload = clean({
+        transactions,
+        commissions
+      })
+
+    const encryptedData = encryptData(safePayload);
 
     return res.status(200).json({
       success: true,
