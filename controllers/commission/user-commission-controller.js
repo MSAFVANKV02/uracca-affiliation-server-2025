@@ -8,11 +8,11 @@ import { clean } from "../../helper/json-cleaner.js";
 
 export const userAllCommissionDetails = async (req, res, next) => {
   try {
-    const userId = req.user._id;
-    const adminId = req.user.workingOn;
+    const userId = req.user?._id;
+    const adminId = req.user?.workingOn;
 
-    if (!userId) {
-      throw new NotFoundError("No user found");
+    if (!userId || !adminId) {
+      throw new NotFoundError("Invalid user or admin context");
     }
 
     const {
@@ -21,75 +21,79 @@ export const userAllCommissionDetails = async (req, res, next) => {
       campaignId = "all",
     } = req.query;
 
-    // DATE FILTERS
+    /* ---------------- DATE FILTER ---------------- */
     const now = new Date();
     let startDate;
 
     switch (period) {
-      case "6month":
-        startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
-        break;
       case "this-month":
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
         break;
       case "this-year":
         startDate = new Date(now.getFullYear(), 0, 1);
         break;
+      case "6month":
       default:
         startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+        break;
     }
 
     const endDate = new Date();
+    const sortOrder = sort === "oldest" ? 1 : -1;
 
-    const query = {
+    /* ---------------- COMMISSIONS ---------------- */
+    const commissionQuery = {
       userId,
       adminId,
       createdAt: { $gte: startDate, $lte: endDate },
     };
 
-    // IMPORTANT FIX: Convert campaignId to ObjectId
     if (campaignId !== "all") {
-      query.campaignId = new mongoose.Types.ObjectId(campaignId);
+      commissionQuery.campaignId = new mongoose.Types.ObjectId(campaignId);
     }
-// 
-    const sortOrder = sort === "oldest" ? 1 : -1;
 
-    const commissions = await Commissions.find(query)
+    const commissions = await Commissions.find(commissionQuery)
       .populate("campaignId")
       .sort({ createdAt: sortOrder });
 
-          const wallet = await Wallet.find(
-            {
-              userId,adminId
-            }
-          )
-      .populate("campaignId")
-      .sort({ createdAt: sortOrder });
+    /* ---------------- WALLET (SINGLE) ---------------- */
+    const wallet = await Wallet.findOne({ userId, adminId });
 
-       const transactions = await Transaction.find(
-        {
-          walletId:wallet._id
-        }
-       )
+    if (!wallet) {
+      return res.status(200).json({
+        success: true,
+        message: "No wallet found",
+        data: encryptData({ commissions, transactions: [] }),
+      });
+    }
+
+    /* ---------------- TRANSACTIONS ---------------- */
+    const transactions = await Transaction.find({
+      walletId: wallet._id,
+      createdAt: { $gte: startDate, $lte: endDate },
+    })
       .populate("walletId")
       .sort({ createdAt: sortOrder });
 
-      const safePayload = clean({
-        transactions,
-        commissions
-      })
+    /* ---------------- RESPONSE ---------------- */
+    const safePayload = clean({
+      wallet,
+      commissions,
+      transactions,
+    });
 
     const encryptedData = encryptData(safePayload);
 
     return res.status(200).json({
       success: true,
-      message: "Commission found",
+      message: "Commission & transactions fetched",
       data: encryptedData,
     });
   } catch (error) {
     next(error);
   }
 };
+
 
 // export const userAllCommissionDetails = async (req, res, next) => {
 //   try {
