@@ -19,6 +19,7 @@ export const createScheduleTicket = async (req, res, next) => {
     // 3️⃣ Check existing pending ticket from same IP
     const existingTicket = await TicketSchedule.findOne({
       "metadata.ip": clientIp,
+      mobile:mobile,
       actionTaken: false,
     });
 
