@@ -29,6 +29,8 @@ import NotificationRouter from "./routes/notifications.route.js";
 import CommissionRouter from "./routes/commission-route.js";
 import NpmRouter from "./routes/npm-route/route.js";
 import tierRouter from "./routes/tier.route.js";
+import ticketRouter from "./routes/ticket.route.js";
+
 
 
 
@@ -163,6 +165,8 @@ app.use("/api/admin/products", productRouter);
 
 app.use("/api/admin/bulk-details", bulkRouter);
 app.use("/api/admin/notifications", NotificationRouter);
+app.use("/api/admin/ticket", ticketRouter);
+
 
 // ------- users apis ----------- ////
 app.use("/api/users/products", productRouter);
