@@ -36,7 +36,7 @@ const affTypeSchema = new mongoose.Schema({
     enum: ["LINKED", "UN_LINKED"],
     default: "LINKED",
   },
-  isTdsEnabled:{ type: Boolean, default: true },
+  isTdsEnabled: { type: Boolean, default: true },
 });
 
 const notificationsSchema = new mongoose.Schema({
@@ -61,7 +61,7 @@ const documentSchema = new mongoose.Schema({
   format: String,
   mimetype: String,
   size: Number,
- 
+  fileType: String,
 });
 
 // ✅ Referral ID generator
@@ -150,12 +150,12 @@ const userSchema = new mongoose.Schema(
       upi: {
         contactId: String,
         fundAccountId: String,
-        isUpdated:Boolean
+        isUpdated: Boolean,
       },
       bank: {
         contactId: String,
         fundAccountId: String,
-        isUpdated:Boolean
+        isUpdated: Boolean,
       },
     },
 
@@ -250,7 +250,6 @@ userSchema.pre("save", function (next) {
 
   next();
 });
-
 
 // ✅ Pre-save hook
 userSchema.pre("save", async function (next) {

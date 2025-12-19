@@ -32,7 +32,7 @@ const platformSchema = new mongoose.Schema(
       type: {
         type: String,
         enum: ["MONTHLY", "LIMITED", "ENTER"],
-        default: "",
+        default: "MONTHLY",
       },
       minAmount: { type: Number },
       maxAmount: { type: Number },

@@ -15,7 +15,8 @@ export const UserActionEnum = Object.freeze({
   REWARD_CLAIM: "REWARD_CLAIM",
   REWARD_EARN: "REWARD_EARN",
   REWARD_STATUS_CHANGE: "REWARD_STATUS_CHANGE",
-
+  USER_REFER: "USER-REFER",
+  NEW_USER: "NEW_USER",
 });
 
 export const UserCategoryEnum = Object.freeze({
