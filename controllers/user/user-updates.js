@@ -78,10 +78,15 @@ export const updateAffUserStatus = async (req, res) => {
 };
 
 // Update user by ID with dynamic body fields
-export const genericUpdateAffUser = async (req, res) => {
+export const genericUpdateAffUser = async (req, res,next) => {
   try {
     const { userId } = req.params;
     const updateData = req.body;
+
+    console.log(userId,'userId');
+    console.log(updateData,'updateData');
+    
+    
 
     const updatedUser = await updateAffUser(userId, updateData);
 
@@ -92,11 +97,12 @@ export const genericUpdateAffUser = async (req, res) => {
     });
   } catch (err) {
     // console.error("Error in generic update:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error while updating user",
-      error: err.message,
-    });
+    next(err)
+    // return res.status(500).json({
+    //   success: false,
+    //   message: "Internal server error while updating user",
+    //   error: err.message,
+    // });
   }
 };
 

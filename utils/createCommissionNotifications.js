@@ -17,6 +17,10 @@ export const createCommissionNotifications = async ({
 }) => {
   if (!user || !admin || !campaign || !amount) return;
 
+  if(!user.notifications.isOn){
+    return;
+  }
+
   try {
     // 🟢 For User
     await AffiliateNotifications.create({

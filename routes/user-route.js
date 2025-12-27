@@ -34,6 +34,8 @@ router.get("/all-admins",authenticateUser, getAllAdminsAffUsers);
 
 router.put("/update-status/:userId",authenticateAdmin, updateAffUserStatus);
 router.put("/generic-update/:userId",authenticateAdmin, genericUpdateAffUser);
+router.put("/generic-update-user/:userId",authenticateUser, genericUpdateAffUser);
+
 
 
 router.post("/logout-admin",authenticateAdmin, logoutAdmin);

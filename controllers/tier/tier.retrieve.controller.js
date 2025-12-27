@@ -227,7 +227,7 @@ export const getUserTierProgressController = async (req, res, next) => {
 
     // 2️⃣ Get Admin & Platform
     const admin = await AffUser.findById(adminId);
-    if (!admin) throw new Error("Admin not found");
+    if (!admin) throw new NotFoundError("Admin not found");
 
     const platformId = admin.platformId;
 
