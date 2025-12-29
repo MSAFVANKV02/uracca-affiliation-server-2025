@@ -76,28 +76,231 @@ export const getAllAffUsers = async (req, res) => {
 };
 
 // =============
+// export const getAllAffUsersForEachAdmins = async (req, res) => {
+//   try {
+//     const adminId = req.admin._id || req.query.adminId; // current admin
+//     const adminType = req.admin.userType || req.query.userType; // current admin's role
+//     // console.log(adminId,'adminId');
+
+//     // Build filter object from query params
+//     const filters = {};
+//     for (const key in req.query) {
+//       if (req.query[key] && !["adminId", "userType"].includes(key)) {
+//         filters[key] = req.query[key];
+//       }
+//     }
+
+//     // ✅ Exclude the current admin from all results
+//     if (adminId) {
+//       filters._id = { $ne: adminId };
+//     }
+
+//     // ✅ Conditional logic for SUPER_ADMIN vs others
+//     if (adminType !== UserTypeEnum.SUPER_ADMIN) {
+//       // Only show users collaborating with this admin
+//       filters.collaborateWith = {
+//         $elemMatch: {
+//           accountId: adminId,
+//           status: "ACCEPTED",
+//         },
+//       };
+//     }
+
+//     // ✅ Fetch filtered users
+//     // const users = await AffUser.find(filters);
+//     let users = await AffUser.find(filters);
+
+//     // 🔥 FETCH DAILY ACTION SUMMARY FOR EACH USER
+//     const usersWithSummary = await Promise.all(
+//       users.map(async (user) => {
+//         const summary = await DailyAction.aggregate([
+//           {
+//             $match: {
+//               userId: user._id,
+//               adminId: adminId,
+//             },
+//           },
+//           {
+//             $group: {
+//               _id: null,
+//               totalClicks: { $sum: "$clicks" },
+//               totalOrders: { $sum: "$orders" },
+//               totalSales: { $sum: "$sales" },
+//               totalEarnings: { $sum: "$earnings" },
+//               totalPaidCommission: { $sum: "$paidCommission" },
+//               totalActiveCampaigns: { $sum: "$activeCampaigns" },
+//             },
+//           },
+//         ]);
+
+//         // 🔥 NEW: Total Pending Commission
+//         const pendingCommission = await Commissions.aggregate([
+//           {
+//             $match: {
+//               userId: user._id,
+//               adminId: adminId,
+//               status: "PENDING",
+//             },
+//           },
+//           {
+//             $group: {
+//               _id: null,
+//               totalPendingCommission: { $sum: "$finalCommission" },
+//             },
+//           },
+//         ]);
+
+//         // return {
+//         //   ...user.toObject(),
+//         //   summary: summary[0] || {
+//         //     totalClicks: 0,
+//         //     totalOrders: 0,
+//         //     totalSales: 0,
+//         //     totalEarnings: 0,
+//         //     totalPaidCommission: 0,
+//         //     totalActiveCampaigns: 0,
+//         //   },
+//         // };
+//         return {
+//           ...user.toObject(),
+//           summary: {
+//             ...(summary[0] || {
+//               totalClicks: 0,
+//               totalOrders: 0,
+//               totalSales: 0,
+//               totalEarnings: 0,
+//               totalPaidCommission: 0,
+//               totalActiveCampaigns: 0,
+//             }),
+
+//             // 🔥 Add Pending Commission here
+//             totalPendingCommission:
+//               pendingCommission[0]?.totalPendingCommission || 0,
+//           },
+//         };
+//       })
+//     );
+
+//     // Encrypt the data before sending
+//     const encryptedData = encryptData(usersWithSummary);
+//     // const safePayload = clean
+
+//     res.status(200).json({
+//       success: true,
+//       count: users.length,
+//       data: encryptedData,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching users:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Server error while fetching users",
+//     });
+//   }
+// };
 export const getAllAffUsersForEachAdmins = async (req, res) => {
   try {
-    const adminId = req.admin._id || req.query.adminId; // current admin
-    const adminType = req.admin.userType || req.query.userType; // current admin's role
-    // console.log(adminId,'adminId');
+    const adminId = req.admin?._id || req.query.adminId;
+    const adminType = req.admin?.userType || req.query.userType;
 
-    // Build filter object from query params
     const filters = {};
+
+    /* ----------------------------------------
+       1️⃣ BUILD FILTERS FROM QUERY
+    ---------------------------------------- */
     for (const key in req.query) {
       if (req.query[key] && !["adminId", "userType"].includes(key)) {
         filters[key] = req.query[key];
       }
     }
 
-    // ✅ Exclude the current admin from all results
+    const isSingleUserRequest = Boolean(filters._id);
+
+    /* ----------------------------------------
+       2️⃣ SINGLE USER FETCH (🔥 IMPORTANT)
+    ---------------------------------------- */
+    if (isSingleUserRequest) {
+      const user = await AffUser.findById(filters._id);
+
+      if (!user) {
+        return res.status(200).json({
+          success: true,
+          count: 0,
+          data: encryptData([]),
+        });
+      }
+
+      // 🔥 Attach summary for single user
+      const summary = await DailyAction.aggregate([
+        {
+          $match: {
+            userId: user._id,
+            adminId: adminId,
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalClicks: { $sum: "$clicks" },
+            totalOrders: { $sum: "$orders" },
+            totalSales: { $sum: "$sales" },
+            totalEarnings: { $sum: "$earnings" },
+            totalPaidCommission: { $sum: "$paidCommission" },
+            totalActiveCampaigns: { $sum: "$activeCampaigns" },
+          },
+        },
+      ]);
+
+      const pendingCommission = await Commissions.aggregate([
+        {
+          $match: {
+            userId: user._id,
+            adminId: adminId,
+            status: "PENDING",
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalPendingCommission: { $sum: "$finalCommission" },
+          },
+        },
+      ]);
+
+      const result = {
+        ...user.toObject(),
+        summary: {
+          ...(summary[0] || {
+            totalClicks: 0,
+            totalOrders: 0,
+            totalSales: 0,
+            totalEarnings: 0,
+            totalPaidCommission: 0,
+            totalActiveCampaigns: 0,
+          }),
+          totalPendingCommission:
+            pendingCommission[0]?.totalPendingCommission || 0,
+        },
+      };
+
+      return res.status(200).json({
+        success: true,
+        count: 1,
+        data: encryptData([result]),
+      });
+    }
+
+    /* ----------------------------------------
+       3️⃣ LIST FETCH (NORMAL FLOW)
+    ---------------------------------------- */
+
+    // Exclude admin from list
     if (adminId) {
       filters._id = { $ne: adminId };
     }
 
-    // ✅ Conditional logic for SUPER_ADMIN vs others
+    // Non super admin sees only collaborators
     if (adminType !== UserTypeEnum.SUPER_ADMIN) {
-      // Only show users collaborating with this admin
       filters.collaborateWith = {
         $elemMatch: {
           accountId: adminId,
@@ -106,11 +309,8 @@ export const getAllAffUsersForEachAdmins = async (req, res) => {
       };
     }
 
-    // ✅ Fetch filtered users
-    // const users = await AffUser.find(filters);
-    let users = await AffUser.find(filters);
+    const users = await AffUser.find(filters);
 
-    // 🔥 FETCH DAILY ACTION SUMMARY FOR EACH USER
     const usersWithSummary = await Promise.all(
       users.map(async (user) => {
         const summary = await DailyAction.aggregate([
@@ -133,7 +333,6 @@ export const getAllAffUsersForEachAdmins = async (req, res) => {
           },
         ]);
 
-        // 🔥 NEW: Total Pending Commission
         const pendingCommission = await Commissions.aggregate([
           {
             $match: {
@@ -150,17 +349,6 @@ export const getAllAffUsersForEachAdmins = async (req, res) => {
           },
         ]);
 
-        // return {
-        //   ...user.toObject(),
-        //   summary: summary[0] || {
-        //     totalClicks: 0,
-        //     totalOrders: 0,
-        //     totalSales: 0,
-        //     totalEarnings: 0,
-        //     totalPaidCommission: 0,
-        //     totalActiveCampaigns: 0,
-        //   },
-        // };
         return {
           ...user.toObject(),
           summary: {
@@ -172,8 +360,6 @@ export const getAllAffUsersForEachAdmins = async (req, res) => {
               totalPaidCommission: 0,
               totalActiveCampaigns: 0,
             }),
-
-            // 🔥 Add Pending Commission here
             totalPendingCommission:
               pendingCommission[0]?.totalPendingCommission || 0,
           },
@@ -181,14 +367,10 @@ export const getAllAffUsersForEachAdmins = async (req, res) => {
       })
     );
 
-    // Encrypt the data before sending
-    const encryptedData = encryptData(usersWithSummary);
-    // const safePayload = clean
-
     res.status(200).json({
       success: true,
       count: users.length,
-      data: encryptedData,
+      data: encryptData(usersWithSummary),
     });
   } catch (error) {
     console.error("Error fetching users:", error);
@@ -198,6 +380,7 @@ export const getAllAffUsersForEachAdmins = async (req, res) => {
     });
   }
 };
+
 
 // =========
 
