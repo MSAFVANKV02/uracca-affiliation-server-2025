@@ -80,7 +80,6 @@ export const createCampaign = async (req, res) => {
       .apply();
     // ============ Affiliate daily action ==============
 
-
     res.status(201).json({
       success: true,
       message: "Campaign created successfully",
@@ -112,12 +111,17 @@ export const getUserCampaigns = async (req, res, next) => {
     }
 
     // Optional filter: only campaigns for a specific admin/platform
-    const { accountId, date, sort } = req.query;
+    const { accountId, date, sort, campaignId } = req.query;
     // console.log(req.query, "req.query");
 
     const query = { userId: userId };
     if (accountId) {
       query["company.accountId"] = accountId;
+    }
+
+    // ✅ NEW: filter by campaignId (single campaign)
+    if (campaignId) {
+      query._id = campaignId;
     }
 
     // Default sorting
@@ -141,7 +145,7 @@ export const getUserCampaigns = async (req, res, next) => {
 
     const campaigns = await Campaign.find(query)
       .sort(sortQuery)
-      .populate("userId");
+      .populate("userId commissionRecords");
 
     const encryptedData = encryptData(campaigns);
 
@@ -161,22 +165,19 @@ export const getUserCampaigns = async (req, res, next) => {
   }
 };
 
-
-
 // =====================================================
 // ============== UPDATE CAMPAIGN ======================
 // =====================================================
 
 export const genericUpdateCampaigns = async (req, res, next) => {
   try {
-    const { campaignId } = req.params;  // ← FIXED: you must pass campaignId
+    const { campaignId } = req.params; // ← FIXED: you must pass campaignId
     const adminId = req.admin ? req.admin._id : null;
     const updateData = req.body;
 
     // console.log(req.admin,'adminId in genericUpdateCampaigns');
 
     // console.log(updateData,'updateData in genericUpdateCampaigns');
-    
 
     const updatedCampaign = await updateAffUserCampaignWidget(
       campaignId,
@@ -192,16 +193,14 @@ export const genericUpdateCampaigns = async (req, res, next) => {
       data: encryptedData,
     });
   } catch (err) {
-    next(err)
+    next(err);
     // return res.status(500).json({
     //   success: false,
     //   message: "Internal server error while updating campaign",
     //   error: err.message,
     // });
-
   }
 };
-
 
 export const updateAffUserCampaignWidget = async (
   campaignId,
@@ -211,7 +210,7 @@ export const updateAffUserCampaignWidget = async (
   // 1. Make sure campaign exists & belongs to this admin
   const existing = await Campaign.findOne({
     _id: campaignId,
-    "company.accountId": adminId,   // only update if this admin owns it
+    "company.accountId": adminId, // only update if this admin owns it
   });
 
   if (!existing) {
